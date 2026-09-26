@@ -1,3 +1,7 @@
+CI Pod Final
+  Team Members:
+                Anali Cardoza
+
 This is a Kotlin Multiplatform project targeting Android, iOS.
 
 * [/iosApp](./iosApp/iosApp) contains an iOS application. Even if you’re sharing your UI with Compose Multiplatform,
