@@ -1,6 +1,6 @@
 CI Pod Final
   Team Members:
-                Anali Cardoza
+                Anali Cardoza,
 
 This is a Kotlin Multiplatform project targeting Android, iOS.
 
