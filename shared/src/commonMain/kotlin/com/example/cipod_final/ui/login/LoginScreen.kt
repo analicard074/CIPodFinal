@@ -25,7 +25,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun LoginScreen() {
+fun LoginScreen(onLoginSuccess: () -> Unit) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
@@ -98,9 +98,10 @@ fun LoginScreen() {
             onClick = {
                 emailError = !isValidCIEmail(email)
 
-                if(!emailError) {
-                    //Email format is valid
-                    //TODO: Add authentication logic
+                if (!emailError) {
+                    // Temporary demo flow: only the email format has been validated.
+                    // TODO: Authenticate credentials before calling onLoginSuccess.
+                    onLoginSuccess()
                 }
             },
             modifier = Modifier.fillMaxWidth()
