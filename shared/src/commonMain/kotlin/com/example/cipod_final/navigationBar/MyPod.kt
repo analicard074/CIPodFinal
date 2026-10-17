@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -60,7 +61,17 @@ fun MyPodScreen(modifier: Modifier = Modifier) {
             singleLine = true,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 16.dp),
+            trailingIcon = {
+                if (search.isNotEmpty()) {
+                    IconButton(onClick = {
+                        search = ""
+                        picked = null
+                    }) {
+                        Text("x")
+                    }
+                }
+            }
         )
 
         // if user picked a building, display it
