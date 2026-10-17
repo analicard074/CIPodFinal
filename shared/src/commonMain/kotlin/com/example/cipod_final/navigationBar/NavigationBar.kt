@@ -16,12 +16,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.cipod_final.buildings.CampusNavigationState
 import com.example.cipod_final.ui.map.CampusMapScreen
 
 private val CIBlue = Color(0xFF174A5D)
@@ -29,6 +32,12 @@ private val CIBlue = Color(0xFF174A5D)
 @Composable
 fun NaviBar(modifier: Modifier = Modifier) {
     var selected by remember { mutableStateOf("MyPod") }
+
+    // Keep campus search, building preview, and destination alive across tab changes.
+    var navigation by rememberSaveable(stateSaver = listSaver<CampusNavigationState, String>(
+        save = { listOf(it.query, it.selectedBuildingId.orEmpty(), it.destinationId.orEmpty()) },
+        restore = { CampusNavigationState(it[0], it[1].ifEmpty { null }, it[2].ifEmpty { null }) }
+    )) { mutableStateOf(CampusNavigationState()) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -45,7 +54,10 @@ fun NaviBar(modifier: Modifier = Modifier) {
                 .padding(contentPadding)
         ) {
             when (selected) {
-                "Directions" -> CampusMapScreen()
+                "Directions" -> CampusMapScreen(
+                    navigation = navigation,
+                    onNavigationChange = { navigation = it }
+                )
                 "MyPod" -> MyPodScreen()
                 else -> Text(
                     text = selected,
