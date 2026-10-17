@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.example.cipod_final.ui.map.CampusMapScreen
 
 @Composable
 fun HomePage(modifier: Modifier = Modifier)
@@ -45,14 +46,20 @@ fun HomePage(modifier: Modifier = Modifier)
             }
         },
     ) { contentPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(contentPadding)
-                .padding(24.dp)
-        ) {
-            Text(selected)
-            Text("$selected content will appear here.")
+        if (selected == "Directions") {
+            CampusMapScreen(
+                modifier = Modifier.fillMaxSize().padding(contentPadding)
+            )
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(contentPadding)
+                    .padding(24.dp)
+            ) {
+                Text(selected)
+                Text("$selected content will appear here.")
+            }
         }
     }
 }

@@ -41,10 +41,12 @@ kotlin {
     
     sourceSets {
         androidMain.dependencies {
+            runtimeOnly(libs.maplibre.compose.runtime.android)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
         }
         commonMain.dependencies {
+            implementation(libs.maplibre.compose)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
