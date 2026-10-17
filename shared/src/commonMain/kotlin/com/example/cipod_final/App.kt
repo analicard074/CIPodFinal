@@ -6,6 +6,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.cipod_final.navigationBar.NaviBar
 import com.example.cipod_final.ui.login.LoginScreen
 import com.example.cipod_final.ui.theme.CIPodTheme
 
@@ -16,7 +17,7 @@ fun App() {
 
     CIPodTheme {
         if (isLoggedIn) {
-            HomePage()
+            NaviBar()
         } else {
             LoginScreen(onLoginSuccess = { isLoggedIn = true })
         }
