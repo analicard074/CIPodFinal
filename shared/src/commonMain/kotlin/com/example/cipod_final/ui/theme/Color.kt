@@ -2,12 +2,12 @@ package com.example.cipod_final.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// Proposed app palette from docs/branding/BRAND_GUIDELINES.md.
+// Referenced app palette from docs/branding/BRAND_GUIDELINES.md.
 val ChannelBlue = Color(0xFF174A5D)
-val OceanTeal = Color(0xFF45A6A4)
-val Seafoam = Color(0xFFBCE5E1)
-val WarmCream = Color(0xFFFFF8ED)
-val SunsetOrange = Color(0xFFF5B76E)
+val OceanTeal = Color(0xFF59C0D1)
+val Seafoam = Color(0xFFD5F1F4)
+val WarmCream = Color(0xFFFDF8EF)
+val SunsetOrange = Color(0xFFE7CEC0)
 
 // Supporting colors keep text, field outlines, and errors readable.
 internal val CoastalInk = Color(0xFF102F3B)
