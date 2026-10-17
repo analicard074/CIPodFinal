@@ -41,6 +41,8 @@ kotlin {
     
     sourceSets {
         androidMain.dependencies {
+            implementation(libs.androidx.core.ktx)
+            implementation(libs.androidx.activity.compose)
             runtimeOnly(libs.maplibre.compose.runtime.android)
             implementation(libs.compose.uiToolingPreview)
             implementation(libs.compose.uiTooling)
