@@ -173,8 +173,8 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.secondary,
-                        contentColor = MaterialTheme.colorScheme.onSecondary
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
                     Text("Log In")
