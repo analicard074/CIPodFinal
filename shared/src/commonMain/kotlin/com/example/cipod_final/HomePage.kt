@@ -12,6 +12,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
+import com.example.cipod_final.buildings.CampusNavigationState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.cipod_final.ui.map.CampusMapScreen
@@ -20,6 +23,11 @@ import com.example.cipod_final.ui.map.CampusMapScreen
 fun HomePage(modifier: Modifier = Modifier)
 {
     var selected by remember { mutableStateOf("Directions") }
+
+    var navigation by rememberSaveable(stateSaver = listSaver<CampusNavigationState, String>(
+        save = { listOf(it.query, it.selectedBuildingId.orEmpty(), it.destinationId.orEmpty()) },
+        restore = { CampusNavigationState(it[0], it[1].ifEmpty { null }, it[2].ifEmpty { null }) }
+    )) { mutableStateOf(CampusNavigationState()) }
 
     Scaffold(
         modifier = modifier.fillMaxSize(),
@@ -48,6 +56,8 @@ fun HomePage(modifier: Modifier = Modifier)
     ) { contentPadding ->
         if (selected == "Directions") {
             CampusMapScreen(
+                navigation = navigation,
+                onNavigationChange = { navigation = it },
                 modifier = Modifier.fillMaxSize().padding(contentPadding)
             )
         } else {
