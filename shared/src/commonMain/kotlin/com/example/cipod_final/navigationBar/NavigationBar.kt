@@ -22,6 +22,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.cipod_final.ui.map.CampusMapScreen
 
 private val CIBlue = Color(0xFF174A5D)
 
@@ -44,6 +45,7 @@ fun NaviBar(modifier: Modifier = Modifier) {
                 .padding(contentPadding)
         ) {
             when (selected) {
+                "Directions" -> CampusMapScreen()
                 "MyPod" -> MyPodScreen()
                 else -> Text(
                     text = selected,
