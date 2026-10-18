@@ -44,6 +44,12 @@ fun NaviBar(modifier: Modifier = Modifier, indoorEditorEnabled: Boolean = false)
     // Device coordinates must never enter the saved navigation state below.
     val locationSession = remember(locationScope) { LocationSession(locationScope) }
 
+    var accessibilityEnabled by rememberSaveable { mutableStateOf(false) }
+    var classes by rememberSaveable(stateSaver = listSaver<List<MyPodClass>, String>(
+        save = { courses -> courses.flatMap { listOf(it.name, it.meetingTime, it.location) } },
+        restore = { values -> values.chunked(3).map { MyPodClass(it[0], it[1], it[2]) } }
+    )) { mutableStateOf(emptyList<MyPodClass>()) }
+
     // Keep campus search, building preview, and destination alive across tab changes.
     var navigation by rememberSaveable(stateSaver = listSaver<CampusNavigationState, String>(
         save = { listOf(it.query, it.selectedBuildingId.orEmpty(), it.destinationId.orEmpty()) },
@@ -71,7 +77,17 @@ fun NaviBar(modifier: Modifier = Modifier, indoorEditorEnabled: Boolean = false)
                     floorEditor = floorEditor,
                     onNavigationChange = { navigation = it }
                 )
-                "MyPod" -> MyPodScreen()
+                "MyPod" -> MyPodScreen(
+                    accessibilityEnabled = accessibilityEnabled,
+                    onAccessibilityChange = { accessibilityEnabled = it },
+                    classes = classes,
+                    onClassesChange = { classes = it },
+                    onDirectionsClick = { selected = "Directions" }
+                )
+                "Settings" -> SettingsScreen(
+                    accessibilityEnabled = accessibilityEnabled,
+                    onAccessibilityChange = { accessibilityEnabled = it }
+                )
                 else -> Text(
                     text = selected,
                     modifier = Modifier
