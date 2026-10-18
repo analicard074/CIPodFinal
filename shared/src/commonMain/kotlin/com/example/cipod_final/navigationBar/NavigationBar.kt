@@ -16,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -25,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cipod_final.buildings.CampusNavigationState
+import com.example.cipod_final.location.LocationSession
 import com.example.cipod_final.ui.map.CampusMapScreen
 
 private val CIBlue = Color(0xFF174A5D)
@@ -32,6 +34,9 @@ private val CIBlue = Color(0xFF174A5D)
 @Composable
 fun NaviBar(modifier: Modifier = Modifier) {
     var selected by remember { mutableStateOf("MyPod") }
+    val locationScope = rememberCoroutineScope()
+    // Device coordinates must never enter the saved navigation state below.
+    val locationSession = remember(locationScope) { LocationSession(locationScope) }
 
     // Keep campus search, building preview, and destination alive across tab changes.
     var navigation by rememberSaveable(stateSaver = listSaver<CampusNavigationState, String>(
@@ -56,6 +61,7 @@ fun NaviBar(modifier: Modifier = Modifier) {
             when (selected) {
                 "Directions" -> CampusMapScreen(
                     navigation = navigation,
+                    locationSession = locationSession,
                     onNavigationChange = { navigation = it }
                 )
                 "MyPod" -> MyPodScreen()
