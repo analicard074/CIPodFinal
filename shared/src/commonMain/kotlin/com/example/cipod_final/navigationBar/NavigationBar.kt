@@ -32,6 +32,7 @@ private val CIBlue = Color(0xFF174A5D)
 @Composable
 fun NaviBar(modifier: Modifier = Modifier) {
     var selected by remember { mutableStateOf("MyPod") }
+    var accessibilityEnabled by rememberSaveable { mutableStateOf(false) }
 
     // Keep campus search, building preview, and destination alive across tab changes.
     var navigation by rememberSaveable(stateSaver = listSaver<CampusNavigationState, String>(
@@ -58,7 +59,14 @@ fun NaviBar(modifier: Modifier = Modifier) {
                     navigation = navigation,
                     onNavigationChange = { navigation = it }
                 )
-                "MyPod" -> MyPodScreen()
+                "MyPod" -> MyPodScreen(
+                    accessibilityEnabled = accessibilityEnabled,
+                    onAccessibilityChange = { accessibilityEnabled = it }
+                )
+                "Settings" -> SettingsScreen(
+                    accessibilityEnabled = accessibilityEnabled,
+                    onAccessibilityChange = { accessibilityEnabled = it }
+                )
                 else -> Text(
                     text = selected,
                     modifier = Modifier
