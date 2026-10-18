@@ -48,6 +48,7 @@ kotlin {
             implementation(libs.compose.uiTooling)
         }
         commonMain.dependencies {
+            implementation(libs.kotlinx.serialization.json)
             implementation(libs.maplibre.compose)
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)

@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "buildingId": "sierra-hall",
+  "floorPlanId": "sierra-demo-a",
+  "planRevision": "demo-1",
+  "demonstration": true,
+  "markers": [
+    {
+      "id": "demo-classroom-a",
+      "name": "Demo classroom A",
+      "type": "classroom",
+      "x": 0.23,
+      "y": 0.23
+    },
+    {
+      "id": "demo-restroom-a",
+      "name": "Demo restroom A",
+      "type": "restroom",
+      "x": 0.75,
+      "y": 0.75
+    }
+  ]
+}

@@ -10,6 +10,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.Lifecycle
@@ -21,6 +25,9 @@ import androidx.compose.ui.unit.dp
 import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.buildings.CampusBuilding
 import com.example.cipod_final.buildings.CampusNavigationState
+import com.example.cipod_final.indoor.FloorPlanCatalog
+import com.example.cipod_final.indoor.FloorPlanEditorState
+import com.example.cipod_final.ui.indoor.IndoorFloorViewer
 import com.example.cipod_final.location.LocationSession
 import com.example.cipod_final.location.LocationStatus
 import com.example.cipod_final.location.StartingPoint
@@ -35,9 +42,11 @@ import org.maplibre.spatialk.geojson.Position
 fun CampusMapScreen(
     navigation: CampusNavigationState,
     locationSession: LocationSession,
+    floorEditor: FloorPlanEditorState,
     onNavigationChange: (CampusNavigationState) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    var indoorBuildingId by remember { mutableStateOf<String?>(null) }
     val focusManager = LocalFocusManager.current
     val controller = rememberLocationController()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -139,8 +148,16 @@ fun CampusMapScreen(
                     focusManager.clearFocus()
                     locationSession.chooseBuilding(building.id)
                 },
+                onViewFloorPlans = if (FloorPlanCatalog.forBuilding(building.id).isNotEmpty()) ({
+                    focusManager.clearFocus()
+                    locationSession.cancelRequest()
+                    indoorBuildingId = building.id
+                }) else null,
                 onClose = { onNavigationChange(navigation.copy(selectedBuildingId = null)) }
             )
         }
+    }
+    indoorBuildingId?.let { buildingId ->
+        IndoorFloorViewer(buildingId, floorEditor, onBack = { indoorBuildingId = null })
     }
 }

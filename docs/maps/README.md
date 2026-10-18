@@ -387,3 +387,12 @@ References:
 [Core Location](https://developer.apple.com/documentation/corelocation/cllocationmanager),
 [Apple one-time request](https://developer.apple.com/documentation/corelocation/cllocationmanager/requestlocation()),
 [Android emulator controls](https://developer.android.com/studio/run/emulator-extended-controls).
+
+
+## Indoor viewer
+
+Sierra Hall now offers View Floor Plans from its details card. The shared indoor
+viewer currently contains fictional demonstration layouts only, with a separately
+enabled developer marker editor. No real floor counts or floor plans are asserted.
+See [indoor viewer and editor](../indoor/README.md) for developer flags, JSON export,
+and adding reviewed real images. Outdoor map/location behavior remains separate.

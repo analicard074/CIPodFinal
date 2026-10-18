@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "buildingId": "sierra-hall",
+  "floorPlanId": "sierra-demo-b",
+  "planRevision": "demo-1",
+  "demonstration": true,
+  "markers": [
+    {
+      "id": "demo-entrance-b",
+      "name": "Demo entrance B",
+      "type": "entrance",
+      "x": 0.5,
+      "y": 0.42
+    },
+    {
+      "id": "demo-stair-b",
+      "name": "Demo stair B",
+      "type": "stair",
+      "x": 0.25,
+      "y": 0.72
+    },
+    {
+      "id": "demo-elevator-b",
+      "name": "Demo elevator B",
+      "type": "elevator",
+      "x": 0.75,
+      "y": 0.72
+    }
+  ]
+}

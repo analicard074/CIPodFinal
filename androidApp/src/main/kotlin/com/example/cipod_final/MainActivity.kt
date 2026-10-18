@@ -1,6 +1,7 @@
 package com.example.cipod_final
 
 import android.os.Bundle
+import com.example.cipod_final.indoor.IndoorEditorPolicy
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -13,7 +14,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            App()
+            App(indoorEditorEnabled = IndoorEditorPolicy.allowed(BuildConfig.DEBUG, BuildConfig.INDOOR_EDITOR_REQUESTED))
         }
     }
 }

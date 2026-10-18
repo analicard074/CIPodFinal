@@ -12,12 +12,12 @@ import com.example.cipod_final.ui.theme.CIPodTheme
 
 @Composable
 @Preview
-fun App() {
+fun App(indoorEditorEnabled: Boolean = false) {
     var isLoggedIn by remember { mutableStateOf(false) }
 
     CIPodTheme {
         if (isLoggedIn) {
-            NaviBar()
+            NaviBar(indoorEditorEnabled = indoorEditorEnabled)
         } else {
             LoginScreen(onLoginSuccess = { isLoggedIn = true })
         }

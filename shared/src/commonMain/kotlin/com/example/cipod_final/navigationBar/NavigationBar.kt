@@ -27,12 +27,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cipod_final.buildings.CampusNavigationState
 import com.example.cipod_final.location.LocationSession
+import com.example.cipod_final.indoor.FloorPlanEditorViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.cipod_final.ui.map.CampusMapScreen
 
 private val CIBlue = Color(0xFF174A5D)
 
 @Composable
-fun NaviBar(modifier: Modifier = Modifier) {
+fun NaviBar(modifier: Modifier = Modifier, indoorEditorEnabled: Boolean = false) {
+    val indoorModel: FloorPlanEditorViewModel = viewModel(key = "indoor-editor-$indoorEditorEnabled") {
+        FloorPlanEditorViewModel(indoorEditorEnabled)
+    }
+    val floorEditor = indoorModel.editor
     var selected by remember { mutableStateOf("MyPod") }
     val locationScope = rememberCoroutineScope()
     // Device coordinates must never enter the saved navigation state below.
@@ -62,6 +68,7 @@ fun NaviBar(modifier: Modifier = Modifier) {
                 "Directions" -> CampusMapScreen(
                     navigation = navigation,
                     locationSession = locationSession,
+                    floorEditor = floorEditor,
                     onNavigationChange = { navigation = it }
                 )
                 "MyPod" -> MyPodScreen()
