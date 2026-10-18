@@ -221,3 +221,45 @@ The enabled build passed tap placement, dragging at zoom 1.8225, name/type editi
 deletion, native clipboard export, and normalized JSON round-trip checks. Unit
 tests also verify retaining drafts when plans are revisited. Real-device touch behavior and approved-image
 alignment should still be reviewed on Android and iOS before student distribution.
+
+## Verified Sierra Hall room directory
+
+Inside Sierra's viewer, tap **Room Directory**. Search by partial room number or
+published type (case-insensitive); tap a result for details. **Back to floor viewer**
+returns to the same selected demonstration layout, zoom and pan. The directory is
+a separate modal above the mounted floor viewer, with its own selection state.
+It neither changes developer drafts nor adds directory entries to marker JSON.
+
+Source: https://ciapps.csuci.edu/classroomsandlabs/ (reviewed 2026-10-18).
+The published listing contains these 15 rooms in this milestone:
+
+- Classroom: 1111, 1121, 1411, 1422.
+- Computer Lab: 1131, 1141, 1212, 1222, 1232, 1242, 1432.
+- Lab: 1314, 1324, 1334, 1344.
+
+These are published room records, not a verified first-floor inventory. No floor
+assignment is inferred from a number, and no position is available. Every selected
+room currently displays **Room location pending verification**. The directory is
+an offline bundled snapshot; later source changes require review and an app update.
+
+`RoomDirectoryModels.kt` and `RoomDirectory.kt` hold facts and provenance without
+coordinates. `RoomDirectoryState.kt` owns building-scoped search/selection.
+`RoomDirectoryPanel.kt` supplies the scrollable student UI.
+`RoomLocationRegistry.kt` holds separate reviewed room-to-plan associations; its
+production registry is empty. A future association requires room/building IDs,
+approved plan ID and matching revision, normalized coordinates, source and review
+date. The resolver rejects demonstration plans, mismatched revisions/buildings,
+and absent evidence. Adding an association alone does not yet draw a marker;
+future integration must use this resolver before highlighting a verified image.
+Developer edits and JSON exports cannot approve room positions.
+
+Broome Library and Gateway Hall can reuse these models and UI with their own
+reviewed records and approved plans. Their data and floor plans remain a separate
+milestone. `RoomDirectoryTest.kt` covers the exact published dataset, search,
+selection, building isolation, pending positions and verification checks.
+
+Manual checks: search `11`, `computer lab`, and an unknown number; select 1432
+and confirm its type/pending message. Zoom and pan demo B, open the directory,
+then return and confirm the canvas is unchanged. In an enabled developer build,
+confirm the directory has no marker editing controls and drafts/export still work
+when returning to the floor viewer.

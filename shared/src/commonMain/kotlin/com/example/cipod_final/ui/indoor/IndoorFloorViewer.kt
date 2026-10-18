@@ -34,6 +34,7 @@ import com.example.cipod_final.indoor.FloorPlanCatalog
 import com.example.cipod_final.indoor.FloorPlanEditorState
 import com.example.cipod_final.indoor.FloorPlanRepository
 import com.example.cipod_final.indoor.RoomMarkerType
+import com.example.cipod_final.indoor.RoomDirectoryState
 import com.example.cipod_final.indoor.rememberFloorPlanExporter
 import kotlinx.coroutines.CancellationException
 
@@ -50,6 +51,8 @@ internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState,
     var loadAttempt by remember(plan.id) { mutableStateOf(0) }
     var showMarkers by remember { mutableStateOf(false) }
     var exportJson by remember { mutableStateOf<String?>(null) }
+    var showDirectory by remember(buildingId) { mutableStateOf(false) }
+    var directory by remember(buildingId) { mutableStateOf(RoomDirectoryState(buildingId)) }
     val markers = editor.markers(plan)
     val selected = markers.firstOrNull { it.id == selectedMarkerId }
     val exit = { editor.enableEditing(false); onBack() }
@@ -78,6 +81,11 @@ internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState,
                             style = MaterialTheme.typography.bodySmall)
                     } else Text("Reviewed plan • ${plan.reviewedOn}", style = MaterialTheme.typography.bodySmall)
                     Row(Modifier.horizontalScroll(rememberScrollState())) {
+                        TextButton(onClick = {
+                            pendingType = null
+                            selectedMarkerId = null
+                            showDirectory = true
+                        }) { Text("Room Directory") }
                         plans.forEach { item ->
                             TextButton(onClick = { selectedId = item.id }) {
                                 Text(if (item.id == plan.id) "✓ ${item.label}" else item.label)
@@ -124,6 +132,9 @@ internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState,
                 }
             }
         }
+    }
+    if (showDirectory) {
+        RoomDirectoryPanel(directory, onChange = { directory = it }, onBack = { showDirectory = false })
     }
     if (showMarkers) {
         AlertDialog(onDismissRequest = { showMarkers = false }, title = { Text("${plan.label} markers") },
