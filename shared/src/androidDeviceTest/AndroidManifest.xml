@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Android 17 requires this for the test APK to reach local Firebase emulators. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+    <!-- Local emulators use HTTP. This applies only to the instrumentation APK. -->
+    <application android:usesCleartextTraffic="true" />
+</manifest>
