@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "947548272302",
+    "project_id": "cipod-88ad3",
+    "storage_bucket": "cipod-88ad3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:947548272302:android:9786ef161b1a831a599f3f",
+        "android_client_info": {
+          "package_name": "com.example.cipod_final"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD8DcuRMApUnxmJoh3Pxo1WubMYMwCTVhg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
