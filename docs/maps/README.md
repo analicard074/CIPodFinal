@@ -14,8 +14,11 @@ buttons. MyCI and Settings retain their existing placeholder content.
 - The background style is `https://tiles.openfreemap.org/styles/positron`.
   No API key, billing account, or paid API is used. An internet connection is
   required to load background maps; this milestone does not provide offline maps.
-- Android declares internet permission. No location permissions are declared or
-  requested. Network-state permission also comes from a library dependency.
+- Android declares internet and foreground location permissions and requests
+  location access once after initial login. iOS requests When In Use location access
+  after initial login.
+  Denying access leaves the app usable; current-location display is not implemented.
+  Network-state permission also comes from a library dependency.
 - `iosApp/Configuration/Config.xcconfig` supplies the system linker flags required
   by MapLibre when Xcode links the static Shared framework.
 
@@ -138,14 +141,15 @@ used the original OpenStreetMap named building geometries via each way's `/full`
 API endpoint. Broome’s point lies inside its named OSM polygon. Sierra’s point is within
 the named building’s overall bounds and approximately 1.8 meters outside its
 outline, consistent with a building-level map point rather than an entrance
-survey. Both correspond to the independently identified building locations. OSM is independent of the university; Mapcarta mirrors OSM and is not
+survey. Both correspond to the independently identified building locations. OSM is independent of
+the university; Mapcarta mirrors OSM and is not
 counted as another independent dataset.
 
-| Building | Published university point (latitude, longitude) | University location / marker IDs | Independent geographic reference | App status |
-| --- | --- | --- | --- | --- |
-| Sierra Hall | 34.162197, -119.044662 | 189849 / 133412 | [OSM way 713268925](https://www.openstreetmap.org/way/713268925), named Sierra Hall | Verified marker and destination |
-| Broome Library | 34.162807, -119.041100 | 189826 / 133389 | [OSM way 461618288](https://www.openstreetmap.org/way/461618288), named John Spoor Broome Library | Verified marker and destination |
-| Gateway Hall | Withheld from app pending independent corroboration | 1067463 / 803263 | No named Gateway Hall geographic feature found in the checked OSM area or independent searches | Search/details only; coordinates null |
+| Building       | Published university point (latitude, longitude)    | University location / marker IDs | Independent geographic reference                                                                  | App status                            |
+|----------------|-----------------------------------------------------|----------------------------------|---------------------------------------------------------------------------------------------------|---------------------------------------|
+| Sierra Hall    | 34.162197, -119.044662                              | 189849 / 133412                  | [OSM way 713268925](https://www.openstreetmap.org/way/713268925), named Sierra Hall               | Verified marker and destination       |
+| Broome Library | 34.162807, -119.041100                              | 189826 / 133389                  | [OSM way 461618288](https://www.openstreetmap.org/way/461618288), named John Spoor Broome Library | Verified marker and destination       |
+| Gateway Hall   | Withheld from app pending independent corroboration | 1067463 / 803263                 | No named Gateway Hall geographic feature found in the checked OSM area or independent searches    | Search/details only; coordinates null |
 
 University building identity and descriptions are also supported by the
 [CSUCI self-guided tour map](https://www.csuci.edu/visit-campus/tours/documents/2019-self-guided-tour-map.pdf)
@@ -181,8 +185,10 @@ local record, update this table, and update the unverified-building tests.
 8. Choose a verified destination, switch to MyCI or Settings, then return to
    Directions. Confirm query/destination survive. Try screen rotation and reopen
    details if desired. Check keyboard dismissal when selecting search results.
-9. Pan, zoom, and open attribution. No walking routes, location permissions,
-   walking times, or floor plans are part of this milestone.
+9. On initial install, the system location prompt appears after login. Allow or deny
+   access and confirm that the app remains usable. On Android, restart after denial
+   and confirm the prompt does not repeat. Pan, zoom, and open attribution.
+   Walking routes, walking times, and floor plans are not implemented.
 
 ### Milestone 2 build verification
 
@@ -193,7 +199,8 @@ local record, update this table, and update the unverified-building tests.
 ```
 
 The Android host suite includes 11 building search/selection tests. Native test
-sources are also compiled for the iOS simulator. All commands above passed after the final marker changes (11/11 new tests,
+sources are also compiled for the iOS simulator. All commands above passed after the final marker
+changes (11/11 new tests,
 zero failures). The full iOS simulator app also compiled and linked successfully:
 
 ```sh
@@ -206,7 +213,8 @@ On the running Android emulator, verified case-insensitive search filtering,
 Positron rendering, building markers and
 labels, result selection, camera centering, marker taps opening details, setting a
 destination, preserving it when closing details or previewing another building,
-replacing it, and clearing it while preserving building details. The label font explicitly uses Positron's supported Noto Sans
+replacing it, and clearing it while preserving building details. The label font explicitly uses
+Positron's supported Noto Sans
 Regular stack. iOS runtime interaction has not been exercised; native source
 compilation and the simulator app link passed. Existing Xcode warnings described
 above still apply.
