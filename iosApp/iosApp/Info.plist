@@ -2,9 +2,9 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Use your location once to show your approximate position on the campus map and let you choose it as your starting point.</string>
-	<key>CADisableMinimumFrameDurationOnPhone</key>
-	<true/>
+    <key>NSLocationWhenInUseUsageDescription</key>
+    <string>Allow location access to show your position on the campus map and choose it as your starting point when you tap Use My Location.</string>
+    <key>CADisableMinimumFrameDurationOnPhone</key>
+    <true/>
 </dict>
 </plist>

@@ -1,6 +1,7 @@
 package com.example.cipod_final
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -12,12 +13,18 @@ import com.example.cipod_final.ui.theme.CIPodTheme
 
 @Composable
 @Preview
-fun App(indoorEditorEnabled: Boolean = false) {
+fun App(
+    indoorEditorEnabled: Boolean = false,
+    onLoginSuccess: () -> Unit = {},
+) {
     var isLoggedIn by remember { mutableStateOf(false) }
 
     CIPodTheme {
         if (isLoggedIn) {
             NaviBar(indoorEditorEnabled = indoorEditorEnabled)
+            LaunchedEffect(Unit) {
+                onLoginSuccess()
+            }
         } else {
             LoginScreen(onLoginSuccess = { isLoggedIn = true })
         }

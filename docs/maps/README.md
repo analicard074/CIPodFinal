@@ -18,9 +18,12 @@ interactive campus map.
 - The background style is `https://tiles.openfreemap.org/styles/positron`.
   No API key, billing account, or paid API is used. An internet connection is
   required to load background maps; this milestone does not provide offline maps.
-- Android declares internet and foreground location permissions. Location is
-  requested only through the on-demand action described below. Network-state
-  permission also comes from a library dependency.
+- Android declares internet and foreground location permissions. After demo login,
+  Android requests foreground permission once automatically; iOS requests When In
+  Use permission when authorization is undetermined. These prompts do not collect
+  coordinates. Denying access leaves the app usable. Use My Location / Retry in
+  Directions request permission when needed and acquire a single location reading.
+  Network-state permission also comes from a library dependency.
 - `iosApp/Configuration/Config.xcconfig` supplies the system linker flags required
   by MapLibre when Xcode links the static Shared framework.
 
@@ -143,14 +146,15 @@ used the original OpenStreetMap named building geometries via each way's `/full`
 API endpoint. Broome’s point lies inside its named OSM polygon. Sierra’s point is within
 the named building’s overall bounds and approximately 1.8 meters outside its
 outline, consistent with a building-level map point rather than an entrance
-survey. Both correspond to the independently identified building locations. OSM is independent of the university; Mapcarta mirrors OSM and is not
+survey. Both correspond to the independently identified building locations. OSM is independent of
+the university; Mapcarta mirrors OSM and is not
 counted as another independent dataset.
 
-| Building | Published university point (latitude, longitude) | University location / marker IDs | Independent geographic reference | App status |
-| --- | --- | --- | --- | --- |
-| Sierra Hall | 34.162197, -119.044662 | 189849 / 133412 | [OSM way 713268925](https://www.openstreetmap.org/way/713268925), named Sierra Hall | Verified marker and destination |
-| Broome Library | 34.162807, -119.041100 | 189826 / 133389 | [OSM way 461618288](https://www.openstreetmap.org/way/461618288), named John Spoor Broome Library | Verified marker and destination |
-| Gateway Hall | Withheld from app pending independent corroboration | 1067463 / 803263 | No named Gateway Hall geographic feature found in the checked OSM area or independent searches | Search/details only; coordinates null |
+| Building       | Published university point (latitude, longitude)    | University location / marker IDs | Independent geographic reference                                                                  | App status                            |
+|----------------|-----------------------------------------------------|----------------------------------|---------------------------------------------------------------------------------------------------|---------------------------------------|
+| Sierra Hall    | 34.162197, -119.044662                              | 189849 / 133412                  | [OSM way 713268925](https://www.openstreetmap.org/way/713268925), named Sierra Hall               | Verified marker and destination       |
+| Broome Library | 34.162807, -119.041100                              | 189826 / 133389                  | [OSM way 461618288](https://www.openstreetmap.org/way/461618288), named John Spoor Broome Library | Verified marker and destination       |
+| Gateway Hall   | Withheld from app pending independent corroboration | 1067463 / 803263                 | No named Gateway Hall geographic feature found in the checked OSM area or independent searches    | Search/details only; coordinates null |
 
 University building identity and descriptions are also supported by the
 [CSUCI self-guided tour map](https://www.csuci.edu/visit-campus/tours/documents/2019-self-guided-tour-map.pdf)
@@ -186,8 +190,11 @@ local record, update this table, and update the unverified-building tests.
 8. Choose a verified destination, switch to MyPod or Settings, then return to
    Directions. Confirm query/destination survive. Try screen rotation and reopen
    details if desired. Check keyboard dismissal when selecting search results.
-9. Pan, zoom, and open attribution. Walking routes, walking times, and floor plans
-   are excluded. On-demand foreground location is tested separately below.
+9. On initial install, confirm the system location prompt appears after demo login.
+   Allow or deny access and confirm the app remains usable. On Android, restart
+   after denial and confirm the automatic prompt does not repeat. Pan, zoom, and
+   open attribution. Test on-demand readings and indoor features separately below;
+   walking routes and walking-time estimates are not implemented.
 
 ### Milestone 2 build verification
 
@@ -198,7 +205,8 @@ local record, update this table, and update the unverified-building tests.
 ```
 
 The Android host suite includes 11 building search/selection tests. Native test
-sources are also compiled for the iOS simulator. All commands above passed after the final marker changes (11/11 new tests,
+sources are also compiled for the iOS simulator. All commands above passed after the final marker
+changes (11/11 new tests,
 zero failures). The full iOS simulator app also compiled and linked successfully:
 
 ```sh
@@ -211,7 +219,8 @@ On the running Android emulator, verified case-insensitive search filtering,
 Positron rendering, building markers and
 labels, result selection, camera centering, marker taps opening details, setting a
 destination, preserving it when closing details or previewing another building,
-replacing it, and clearing it while preserving building details. The label font explicitly uses Positron's supported Noto Sans
+replacing it, and clearing it while preserving building details. The label font explicitly uses
+Positron's supported Noto Sans
 Regular stack. iOS runtime interaction has not been exercised; native source
 compilation and the simulator app link passed. Existing Xcode warnings described
 above still apply.
@@ -219,8 +228,8 @@ above still apply.
 ## Scope
 
 Milestone 2 adds building discovery and destination selection. Walking routes,
-walking-time estimates and indoor floor plans remain outside this implementation.
-Current location is added by the on-demand feature described below. No commit or push is needed to test these local changes.
+walking-time estimates remain outside this implementation. Current location and
+indoor floor plans are covered by the later features described below. No commit or push is needed to test these local changes.
 
 ## On-demand starting location
 
@@ -232,9 +241,17 @@ not passed independent verification.
 
 ### Behavior and quality policy
 
-- Opening the app, logging in, entering Directions, and choosing a manual building
-  do not request location access. Use My Location / Retry location are the only
-  permission-request actions.
+- Demo login can request foreground permission, but never retrieves coordinates.
+  Android persists only the `permissions/locationRequested` boolean to suppress
+  repeated automatic prompts, including after denial, revocation, or one-time
+  permission expiry. This flag does not gate Use My Location / Retry location.
+  Those actions check current OS authorization and request it again when supported;
+  otherwise the denied state offers Open Settings and manual building selection.
+- iOS prompts after login only while authorization is undetermined. Allow Once can
+  expire and cause a later login to prompt again; denial requires recovery through
+  Settings. Entering Directions or choosing a manual building does not itself
+  request permission or acquire a reading. Only Use My Location / Retry initiates
+  one-shot acquisition.
 - Android uses Activity Result foreground permissions and AndroidX
   `LocationManagerCompat.getCurrentLocation` with the platform GPS provider, or
   an enabled network provider when appropriate. It works from API 24 and does not
@@ -283,7 +300,8 @@ loads online tiles, and tile requests/cache keys reveal the viewed map area;
 this feature does not make background maps offline or anonymous.
 
 `androidApp/src/main/AndroidManifest.xml` adds `ACCESS_COARSE_LOCATION` and
-`ACCESS_FINE_LOCATION`, requested together only on action. No
+`ACCESS_FINE_LOCATION`, requested together after login or through an explicit
+Directions action when needed. No
 `ACCESS_BACKGROUND_LOCATION`, foreground location service, or service declaration
 is added. `iosApp/iosApp/Info.plist` adds `NSLocationWhenInUseUsageDescription`.
 No location background mode is added. Denied/restricted iOS access opens app
@@ -311,7 +329,7 @@ or location-provider wrappers were introduced.
 - `BuildingSearchBar.kt`: configurable result height to leave room for start controls.
 - `navigationBar/NavigationBar.kt`: retains a memory-only location session outside
   the five-tab switch. It keeps the existing saved building/destination state
-  separate. Login, MyPod, tab styling, and the Positron style remain unchanged.
+  separate. MyPod, tab styling, and the Positron style remain intact.
 - Common `LocationQualityPolicyTest` and `NavigationStartStateTest`: boundary,
   invalid/reduced/stale readings, selection, replacement, expiry, and late results.
 - Android host `LocationSessionTest`: permission gating, one reading, denial,
@@ -319,13 +337,15 @@ or location-provider wrappers were introduced.
 
 ### Android Studio location testing
 
-1. Sync Gradle on `feature/walking-navigation`. Run `androidApp` on an emulator
-   with internet and hardware/automatic graphics. Log in using the demo address
-   `student@csuci.edu`, then select Directions. No location dialog should appear.
+1. Run `androidApp` on an emulator with hardware/automatic graphics. Internet is
+   needed for background map tiles. Log in using the demo address `student@csuci.edu`.
+   On a fresh install, allow or deny the foreground permission prompt. Confirm no
+   location reading starts. Select Directions; entering the tab should not prompt.
 2. Open the emulator's **Extended Controls (…) → Location → Single points**.
    If these controls are unavailable in the embedded emulator, launch the emulator
    in a separate window. Ensure Android's system Location setting is enabled.
-3. Tap Use My Location. Choose Precise and While using the app or Only this time.
+3. Tap Use My Location. If permission is still needed, choose Precise and While
+   using the app or Only this time. If already granted, no second prompt is needed.
    Once the screen says Getting one location reading, send latitude **34.162197**,
    longitude **-119.044662** (the verified Sierra building map point). Sending a
    single fix before the provider starts can miss the active request; send it again
