@@ -1,13 +1,26 @@
-// Local emulator fixture only. Do not deploy to the shared Firebase project.
+// Rules for the app's users collection, also exercised by local emulator tests.
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{uid} {
-      allow read: if request.auth != null && request.auth.uid == uid;
-      allow create, update: if request.auth != null
-        && request.auth.uid == uid
-        && request.resource.data.keys().hasOnly(['displayName'])
-        && request.resource.data.displayName is string;
+      function ownsProfile() {
+        return request.auth != null && request.auth.uid == uid;
+      }
+      allow get: if ownsProfile();
+      allow create: if ownsProfile()
+        && request.resource.data.keys().hasAll(['displayName', 'email', 'createdAt', 'lastLoginAt'])
+        && request.resource.data.keys().hasOnly(['displayName', 'email', 'createdAt', 'lastLoginAt'])
+        && request.resource.data.displayName is string
+        && request.resource.data.displayName.size() > 0
+        && request.resource.data.displayName.size() <= 100
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.email.matches('^[^@ ]+@(myci[.])?csuci[.]edu$')
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.lastLoginAt == request.time;
+      allow update: if ownsProfile()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['lastLoginAt'])
+        && request.resource.data.lastLoginAt == request.time;
+      // Other users' profiles, listing, and deletion are denied by default.
     }
   }
 }

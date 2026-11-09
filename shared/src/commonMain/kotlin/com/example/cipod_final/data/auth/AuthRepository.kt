@@ -8,12 +8,15 @@ data class AuthUser(
     val isEmailVerified: Boolean,
 )
 
-/** A real Firebase session. The demo login does not implement or update this state. */
+// A Firebase Authentication session.
 interface AuthRepository {
     val currentUser: AuthUser?
     val authState: Flow<AuthUser?>
 
-    /** Signs in an existing account; credentials are not retained by this repository. */
+    // Signs in an existing account; credentials are not retained by this repository.
     suspend fun signIn(email: String, password: String): AuthUser
+
+    // Creates an app account and signs in.
+    suspend fun createAccount(email: String, password: String): AuthUser
     suspend fun signOut()
 }

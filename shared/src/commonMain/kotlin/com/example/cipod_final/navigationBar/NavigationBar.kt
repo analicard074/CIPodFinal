@@ -25,23 +25,27 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.cipod_final.buildings.CampusNavigationState
-import com.example.cipod_final.location.LocationSession
-import com.example.cipod_final.indoor.FloorPlanEditorViewModel
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.cipod_final.buildings.CampusNavigationState
+import com.example.cipod_final.indoor.FloorPlanEditorViewModel
+import com.example.cipod_final.location.LocationSession
 import com.example.cipod_final.ui.map.CampusMapScreen
 
 private val CIBlue = Color(0xFF174A5D)
 
 @Composable
-fun NaviBar(modifier: Modifier = Modifier, indoorEditorEnabled: Boolean = false) {
+fun NaviBar(
+    modifier: Modifier = Modifier,
+    indoorEditorEnabled: Boolean = false,
+    onSignOut: suspend () -> Unit = {},
+) {
     val indoorModel: FloorPlanEditorViewModel = viewModel(key = "indoor-editor-$indoorEditorEnabled") {
         FloorPlanEditorViewModel(indoorEditorEnabled)
     }
     val floorEditor = indoorModel.editor
     var selected by remember { mutableStateOf("MyPod") }
     val locationScope = rememberCoroutineScope()
-    // Device coordinates must never enter the saved navigation state below.
+    // Device coordinates stay in this memory-only session and are never saved with navigation state.
     val locationSession = remember(locationScope) { LocationSession(locationScope) }
 
     var accessibilityEnabled by rememberSaveable { mutableStateOf(false) }
@@ -85,6 +89,15 @@ fun NaviBar(modifier: Modifier = Modifier, indoorEditorEnabled: Boolean = false)
                     onDirectionsClick = { selected = "Directions" }
                 )
                 "Settings" -> SettingsScreen(
+                    onSignOut = {
+                        // Preserve the current session if Firebase sign-out fails.
+                        onSignOut()
+                        locationSession.clear()
+                        navigation = CampusNavigationState()
+                        classes = emptyList()
+                        accessibilityEnabled = false
+                        selected = "MyPod"
+                    },
                     accessibilityEnabled = accessibilityEnabled,
                     onAccessibilityChange = { accessibilityEnabled = it }
                 )

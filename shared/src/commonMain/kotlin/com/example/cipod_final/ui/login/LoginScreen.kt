@@ -26,10 +26,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,24 +39,36 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.example.cipod_final.data.ProfileSaveException
+import dev.gitlive.firebase.auth.FirebaseAuthInvalidCredentialsException
+import dev.gitlive.firebase.auth.FirebaseAuthInvalidUserException
+import dev.gitlive.firebase.auth.FirebaseAuthUserCollisionException
+import dev.gitlive.firebase.auth.FirebaseAuthWeakPasswordException
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit) {
+fun LoginScreen(
+    onAuthenticate: suspend (email: String, password: String, createAccount: Boolean) -> Unit,
+) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
     var emailError by remember { mutableStateOf(false) }
+    var creatingAccount by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
 
     fun isValidCIEmail(input: String): Boolean {
-        val emailAddress = input.trim().lowercase()
-
-        val validDomain =
-            emailAddress.endsWith("@csuci.edu") ||
-            emailAddress.endsWith("@myci.csuci.edu")
-
-        return validDomain &&
-                emailAddress.substringBefore("@"). isNotBlank()
+        val parts = input.trim().lowercase().split('@')
+        return parts.size == 2 && parts[0].isNotBlank() &&
+                parts[0].none { it.isWhitespace() } &&
+                parts[1] in setOf("csuci.edu", "myci.csuci.edu")
     }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -71,7 +85,10 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Box(Modifier.size(16.dp).background(MaterialTheme.colorScheme.secondary, CircleShape))
-            Box(Modifier.size(24.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape))
+            Box(
+                Modifier.size(24.dp)
+                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape)
+            )
             Box(Modifier.size(16.dp).background(MaterialTheme.colorScheme.tertiary, CircleShape))
         }
 
@@ -111,7 +128,11 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Log in with your CSUCI email to get started.",
+                    text = if (creatingAccount) {
+                        "Use your CSUCI email and create a password for this app."
+                    } else {
+                        "Log in with your CSUCI email and CIPod password."
+                    },
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center
                 )
@@ -124,6 +145,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 )
 
                 OutlinedTextField(
+                    enabled = !isLoading,
                     value = email,
                     onValueChange = {
                         email = it
@@ -148,9 +170,10 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
+                    enabled = !isLoading,
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("Password") },
+                    label = { Text("App password") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium,
                     colors = fieldColors,
@@ -163,13 +186,57 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                 Button(
                     onClick = {
                         emailError = !isValidCIEmail(email)
+                        errorMessage = null
+                        if (!emailError && !isLoading) {
+                            if (password.isBlank()) {
+                                errorMessage = "Please enter your password."
+                            } else if (creatingAccount && password.length < 6) {
+                                errorMessage = "Choose an app password with at least 6 characters."
+                            } else {
+                                isLoading = true
+                                scope.launch {
+                                    try {
+                                        // Wait for Firebase before opening the main screen.
+                                        withTimeout(30_000) {
+                                            onAuthenticate(
+                                                email.trim().lowercase(),
+                                                password,
+                                                creatingAccount
+                                            )
+                                        }
+                                        password = ""
+                                    } catch (error: TimeoutCancellationException) {
+                                        creatingAccount = false
+                                        errorMessage =
+                                            "The request timed out. Please try Log In again."
+                                    } catch (error: CancellationException) {
+                                        throw error
+                                    } catch (error: Exception) {
+                                        errorMessage = when (error) {
+                                            is ProfileSaveException -> {
+                                                creatingAccount = false
+                                                error.message
+                                            }
 
-                        if (!emailError) {
-                            // Temporary demo flow: only the email format has been validated.
-                            // TODO: Authenticate credentials before calling onLoginSuccess.
-                            onLoginSuccess()
+                                            is FirebaseAuthUserCollisionException -> {
+                                                creatingAccount = false
+                                                "This email already exists. Please log in."
+                                            }
+
+                                            is FirebaseAuthWeakPasswordException -> "Choose a stronger password."
+                                            is FirebaseAuthInvalidCredentialsException,
+                                            is FirebaseAuthInvalidUserException -> "Check your email and password."
+
+                                            else -> "Unable to connect. Check your connection and try again."
+                                        }
+                                    } finally {
+                                        isLoading = false
+                                    }
+                                }
+                            }
                         }
                     },
+                    enabled = !isLoading,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp),
                     shape = MaterialTheme.shapes.medium,
                     colors = ButtonDefaults.buttonColors(
@@ -177,7 +244,20 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
                         contentColor = MaterialTheme.colorScheme.onPrimary
                     )
                 ) {
-                    Text("Log In")
+                    Text(if (isLoading) "Please wait…" else if (creatingAccount) "Create Account" else "Log In")
+                }
+                TextButton(
+                    enabled = !isLoading,
+                    onClick = {
+                        creatingAccount = !creatingAccount
+                        errorMessage = null
+                        emailError = false
+                    },
+                ) {
+                    Text(if (creatingAccount) "Back to Log In" else "Create an account")
+                }
+                errorMessage?.let { message ->
+                    Text(message, color = MaterialTheme.colorScheme.error)
                 }
             }
         }
