@@ -18,6 +18,8 @@ import kotlinx.coroutines.withTimeout
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.util.UUID
+import java.net.HttpURLConnection
+import java.net.URL
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
@@ -43,13 +45,29 @@ class FirebaseEmulatorTest {
             val nativeAuth = Firebase.auth(app)
             val firestore = Firebase.firestore(app)
             try {
+                val catalogDocumentId = seedLocalClassCatalog()
                 assertNull(repositories.auth.currentUser)
+                assertFailsWith<IllegalStateException> { repositories.getClassSessions() }
                 assertFailsWith<IllegalStateException> { repositories.profiles.getCurrentUserProfile() }
                 val email = "foundation-${UUID.randomUUID()}@myci.csuci.edu"
                 // Transient test input, never saved in application state or configuration.
                 val password = UUID.randomUUID().toString()
                 repositories.authenticate(email, password, createAccount = true)
                 val user = checkNotNull(repositories.auth.currentUser)
+                val expectedSession = ClassSession(
+                    building = "gateway-hall",
+                    courseCode = "COMP 105",
+                    courseName = "Introduction To Programming",
+                    days = listOf("Tue", "Thu"),
+                    endTime = 615,
+                    floor = 3,
+                    room = "3570",
+                    startTime = 540,
+                )
+                assertTrue(expectedSession in repositories.getClassSessions())
+                val catalogDocument = firestore.collection("classSessions").document(catalogDocumentId)
+                assertFailsWith<FirebaseFirestoreException> { catalogDocument.set(expectedSession) }
+                assertFailsWith<FirebaseFirestoreException> { catalogDocument.delete() }
                 val ownDocument = firestore.collection("users").document(user.uid)
                 val firstProfile = ownDocument.get(Source.SERVER)
                 val createdAt = firstProfile.get<Timestamp>("createdAt")
@@ -110,6 +128,9 @@ class FirebaseEmulatorTest {
                 )
                 repositories.auth.signOut()
                 assertNull(repositories.auth.authState.first())
+                assertFailsWith<FirebaseFirestoreException> {
+                    firestore.collection("classSessions").get(Source.SERVER)
+                }
                 assertFailsWith<IllegalStateException> { repositories.profiles.getCurrentUserProfile() }
                 assertFailsWith<FirebaseFirestoreException> { ownDocument.get(Source.SERVER) }
             } finally {
@@ -118,5 +139,37 @@ class FirebaseEmulatorTest {
                 app.delete()
             }
         }
+    }
+
+    private fun seedLocalClassCatalog(): String {
+        val documentId = "catalog-${UUID.randomUUID()}"
+        val connection = URL(
+            "http://10.0.2.2:8080/v1/projects/demo-cipod-foundation/databases/(default)/documents/classSessions/$documentId"
+        ).openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "PATCH"
+            connection.connectTimeout = 5_000
+            connection.readTimeout = 5_000
+            connection.doOutput = true
+            // Emulator-only admin token: seed data that student clients cannot modify.
+            connection.setRequestProperty("Authorization", "Bearer owner")
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.outputStream.bufferedWriter().use { writer ->
+                writer.write("""{"fields":{
+                    "building":{"stringValue":"gateway-hall"},
+                    "courseCode":{"stringValue":"COMP 105"},
+                    "courseName":{"stringValue":"Introduction To Programming"},
+                    "days":{"arrayValue":{"values":[{"stringValue":"Tue"},{"stringValue":"Thu"}]}},
+                    "endTime":{"integerValue":"615"},
+                    "floor":{"integerValue":"3"},
+                    "room":{"stringValue":"3570"},
+                    "startTime":{"integerValue":"540"}
+                }}""")
+            }
+            assertEquals(200, connection.responseCode)
+        } finally {
+            connection.disconnect()
+        }
+        return documentId
     }
 }
