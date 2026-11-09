@@ -71,12 +71,72 @@ class FirebaseUserProfileRepositoryTest {
         }
     }
 
+    @Test
+    fun signedOutSessionCannotWriteAProfile() = runTest {
+        var wroteProfile = false
+        val repository = FirebaseUserProfileRepository(
+            authRepository = FakeAuthRepository(null),
+            writeLogin = { wroteProfile = true },
+            readProfile = { null },
+        )
+        assertFailsWith<IllegalStateException> { repository.recordLogin() }
+        assertFalse(wroteProfile)
+    }
+
+    @Test
+    fun profileWriteUsesOnlyTheAuthenticatedUser() = runTest {
+        var savedUser: AuthUser? = null
+        val repository = FirebaseUserProfileRepository(
+            authRepository = FakeAuthRepository(user),
+            writeLogin = { savedUser = it },
+            readProfile = { null },
+        )
+        repository.recordLogin()
+        assertEquals(user, savedUser)
+    }
+
+    @Test
+    fun invalidUserIdCannotWriteAProfile() = runTest {
+        var wroteProfile = false
+        val repository = FirebaseUserProfileRepository(
+            authRepository = FakeAuthRepository(user.copy(uid = "other/profile")),
+            writeLogin = { wroteProfile = true },
+            readProfile = { null },
+        )
+        assertFailsWith<IllegalArgumentException> { repository.recordLogin() }
+        assertFalse(wroteProfile)
+    }
+
+    @Test
+    fun profileWritesPropagateErrorsAndCancellation() = runTest {
+        for (failure in listOf(IllegalStateException("Permission denied"), CancellationException())) {
+            val repository = FirebaseUserProfileRepository(
+                authRepository = FakeAuthRepository(user),
+                writeLogin = { throw failure },
+                readProfile = { null },
+            )
+            assertSame(failure, assertFailsWith<Exception> { repository.recordLogin() })
+        }
+    }
+
+    @Test
+    fun sessionChangeDuringWriteDoesNotCompleteLogin() = runTest {
+        val auth = FakeAuthRepository(user)
+        val repository = FirebaseUserProfileRepository(
+            authRepository = auth,
+            writeLogin = { auth.currentUser = null },
+            readProfile = { null },
+        )
+        assertFailsWith<IllegalStateException> { repository.recordLogin() }
+    }
+
     private val user = AuthUser("test-user", "test@example.invalid", false)
 }
 
 private class FakeAuthRepository(override var currentUser: AuthUser?) : AuthRepository {
     override val authState = MutableStateFlow(currentUser)
     override suspend fun signIn(email: String, password: String): AuthUser = error("Unused in profile tests")
+    override suspend fun createAccount(email: String, password: String): AuthUser = error("Unused in profile tests")
     override suspend fun signOut() {
         currentUser = null
     }

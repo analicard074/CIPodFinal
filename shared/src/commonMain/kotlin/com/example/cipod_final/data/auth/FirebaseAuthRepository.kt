@@ -7,7 +7,7 @@ import dev.gitlive.firebase.auth.auth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
-/** Construct only after platform Firebase initialization. No sign-in occurs on construction. */
+// Construct only after platform Firebase initialization. No sign-in occurs on construction.
 class FirebaseAuthRepository(
     private val auth: FirebaseAuth = Firebase.auth,
 ) : AuthRepository {
@@ -20,6 +20,11 @@ class FirebaseAuthRepository(
     override suspend fun signIn(email: String, password: String): AuthUser =
         checkNotNull(auth.signInWithEmailAndPassword(email, password).user) {
             "Firebase sign-in did not return a user."
+        }.toAuthUser()
+
+    override suspend fun createAccount(email: String, password: String): AuthUser =
+        checkNotNull(auth.createUserWithEmailAndPassword(email, password).user) {
+            "Firebase registration did not return a user."
         }.toAuthUser()
 
     override suspend fun signOut() {

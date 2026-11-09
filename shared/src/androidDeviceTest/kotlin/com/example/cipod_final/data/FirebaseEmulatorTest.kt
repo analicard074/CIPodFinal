@@ -7,8 +7,9 @@ import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.FirebaseOptions
 import dev.gitlive.firebase.auth.FirebaseAuthException
 import dev.gitlive.firebase.auth.auth
-import dev.gitlive.firebase.firestore.Source
 import dev.gitlive.firebase.firestore.FirebaseFirestoreException
+import dev.gitlive.firebase.firestore.Source
+import dev.gitlive.firebase.firestore.Timestamp
 import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.initialize
 import kotlinx.coroutines.flow.first
@@ -20,12 +21,13 @@ import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
-/** Run only with the local Auth/Firestore emulators; no registered Firebase app is used. */
+// Run only with the local Auth/Firestore emulators; no registered Firebase app is used.
 @RunWith(AndroidJUnit4::class)
 class FirebaseEmulatorTest {
     @Test
-    fun signsInAndReadsOnlyItsOwnEmulatedProfile() = runBlocking<Unit> {
+    fun createsAccountAndRecordsOnlyItsOwnProfile() = runBlocking<Unit> {
         withTimeout(45_000) {
             val context = InstrumentationRegistry.getInstrumentation().targetContext
             val app = Firebase.initialize(
@@ -43,23 +45,69 @@ class FirebaseEmulatorTest {
             try {
                 assertNull(repositories.auth.currentUser)
                 assertFailsWith<IllegalStateException> { repositories.profiles.getCurrentUserProfile() }
-                val email = "foundation-${UUID.randomUUID()}@example.invalid"
+                val email = "foundation-${UUID.randomUUID()}@myci.csuci.edu"
                 // Transient test input, never saved in application state or configuration.
                 val password = UUID.randomUUID().toString()
-                nativeAuth.createUserWithEmailAndPassword(email, password)
-                repositories.auth.signOut()
-                assertFailsWith<FirebaseAuthException> { repositories.auth.signIn(email, "incorrect") }
-                val user = repositories.auth.signIn(email, password)
-                assertEquals(user.uid, repositories.auth.authState.first { it != null }?.uid)
-                assertNull(repositories.profiles.getCurrentUserProfile())
-
-                // This named app targets only demo-cipod-foundation on local emulators.
+                repositories.authenticate(email, password, createAccount = true)
+                val user = checkNotNull(repositories.auth.currentUser)
                 val ownDocument = firestore.collection("users").document(user.uid)
-                ownDocument.set(mapOf("displayName" to "Emulator User"))
-                assertEquals(UserProfile(user.uid, "Emulator User"), repositories.profiles.getCurrentUserProfile())
+                val firstProfile = ownDocument.get(Source.SERVER)
+                val createdAt = firstProfile.get<Timestamp>("createdAt")
+                val firstLogin = firstProfile.get<Timestamp>("lastLoginAt")
+                assertEquals(createdAt, firstLogin)
+                assertEquals(email, firstProfile.get<String>("email"))
+                assertEquals(
+                    UserProfile(user.uid, email.substringBefore('@')),
+                    repositories.profiles.getCurrentUserProfile()
+                )
+
+                repositories.auth.signOut()
+                assertFailsWith<FirebaseAuthException> {
+                    repositories.authenticate(email, "incorrect", createAccount = false)
+                }
+                repositories.authenticate(email, password, createAccount = false)
+                assertEquals(user.uid, repositories.auth.authState.first { it != null }?.uid)
+                val nextProfile = ownDocument.get(Source.SERVER)
+                assertEquals(createdAt, nextProfile.get<Timestamp>("createdAt"))
+                assertEquals(
+                    firstProfile.get<String>("displayName"),
+                    nextProfile.get<String>("displayName")
+                )
+                val nextLogin = nextProfile.get<Timestamp>("lastLoginAt")
+                assertTrue(
+                    nextLogin.seconds > firstLogin.seconds ||
+                            (nextLogin.seconds == firstLogin.seconds && nextLogin.nanoseconds > firstLogin.nanoseconds)
+                )
+
+                assertFailsWith<FirebaseFirestoreException> {
+                    ownDocument.update(mapOf("createdAt" to Timestamp.now()))
+                }
+                assertFailsWith<FirebaseFirestoreException> {
+                    ownDocument.update(mapOf("role" to "admin"))
+                }
+                assertFailsWith<FirebaseFirestoreException> { ownDocument.delete() }
                 assertFailsWith<FirebaseFirestoreException> {
                     firestore.collection("users").document("another-user").get(Source.SERVER)
                 }
+                assertFailsWith<FirebaseFirestoreException> {
+                    firestore.collection("users").document("another-user")
+                        .set(mapOf("displayName" to "Other"))
+                }
+                assertFailsWith<FirebaseFirestoreException> {
+                    firestore.collection("users").get(Source.SERVER)
+                }
+
+                // A login also repairs a profile missing after a failed registration write.
+                repositories.auth.signOut()
+                val repairEmail = "repair-${UUID.randomUUID()}@csuci.edu"
+                nativeAuth.createUserWithEmailAndPassword(repairEmail, password)
+                assertNull(repositories.profiles.getCurrentUserProfile())
+                repositories.auth.signOut()
+                repositories.authenticate(repairEmail, password, createAccount = false)
+                assertEquals(
+                    repairEmail.substringBefore('@'),
+                    repositories.profiles.getCurrentUserProfile()?.displayName
+                )
                 repositories.auth.signOut()
                 assertNull(repositories.auth.authState.first())
                 assertFailsWith<IllegalStateException> { repositories.profiles.getCurrentUserProfile() }
