@@ -10,20 +10,39 @@ import dev.gitlive.firebase.auth.auth
 import dev.gitlive.firebase.firestore.firestore
 import dev.gitlive.firebase.firestore.firestoreSettings
 import dev.gitlive.firebase.firestore.memoryCacheSettings
+import kotlinx.coroutines.CancellationException
 
-/** Explicit opt-in wiring; the app and demo login do not construct this container. */
+// Firebase services shared by Android and iOS.
 class FirebaseRepositories private constructor(
     val auth: AuthRepository,
     val profiles: UserProfileRepository,
 ) {
+    // Open the main screen only after both authentication and profile saving succeed.
+    suspend fun authenticate(email: String, password: String, createAccount: Boolean) {
+        if (createAccount) {
+            auth.createAccount(email, password)
+        } else {
+            auth.signIn(email, password)
+        }
+
+        try {
+            profiles.recordLogin()
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // The Auth account may already exist. Retry through Log In, not registration.
+            throw ProfileSaveException(error)
+        }
+    }
+
     companion object {
-        /** Uses the platform-configured default app. Does not sign in or read/write profiles. */
+        // Uses the platform-configured default app. Does not sign in or read/write profiles.
         fun create(): FirebaseRepositories {
             val auth = FirebaseAuthRepository()
             return FirebaseRepositories(auth, FirebaseUserProfileRepository(auth))
         }
 
-        /** Requires a separate demo app; never redirects or reuses the production app/cache. */
+        // Requires a separate demo app; never redirects or reuses the production app/cache.
         fun forLocalEmulators(app: FirebaseApp, host: String): FirebaseRepositories {
             require(app.options.projectId?.startsWith("demo-") == true) {
                 "Emulator testing requires a separate demo- Firebase app."
@@ -43,3 +62,8 @@ class FirebaseRepositories private constructor(
         }
     }
 }
+
+class ProfileSaveException(cause: Exception) : Exception(
+    "Your account is signed in, but the profile could not be saved. Please try Log In again.",
+    cause,
+)
