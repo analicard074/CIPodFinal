@@ -30,7 +30,7 @@ import com.example.cipod_final.ui.map.CampusMapScreen
 private val CIBlue = Color(0xFF174A5D)
 
 @Composable
-fun NaviBar(modifier: Modifier = Modifier) {
+fun NaviBar(modifier: Modifier = Modifier, onSignOut: suspend () -> Unit = {}) {
     var selected by remember { mutableStateOf("MyPod") }
     var accessibilityEnabled by rememberSaveable { mutableStateOf(false) }
     var classes by rememberSaveable(stateSaver = listSaver<List<MyPodClass>, String>(
@@ -71,6 +71,7 @@ fun NaviBar(modifier: Modifier = Modifier) {
                     onDirectionsClick = { selected = "Directions" }
                 )
                 "Settings" -> SettingsScreen(
+                    onSignOut = onSignOut,
                     accessibilityEnabled = accessibilityEnabled,
                     onAccessibilityChange = { accessibilityEnabled = it }
                 )
