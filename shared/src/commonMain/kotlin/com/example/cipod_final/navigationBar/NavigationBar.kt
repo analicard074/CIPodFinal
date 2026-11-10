@@ -24,13 +24,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.cipod_final.data.ClassSession
 import com.example.cipod_final.buildings.CampusNavigationState
 import com.example.cipod_final.ui.map.CampusMapScreen
 
 private val CIBlue = Color(0xFF174A5D)
 
 @Composable
-fun NaviBar(modifier: Modifier = Modifier, onSignOut: suspend () -> Unit = {}) {
+fun NaviBar(
+    modifier: Modifier = Modifier,
+    onSignOut: suspend () -> Unit = {},
+    loadClassSessions: suspend () -> List<ClassSession> = { emptyList() },
+) {
     var selected by remember { mutableStateOf("MyPod") }
     var accessibilityEnabled by rememberSaveable { mutableStateOf(false) }
     var classes by rememberSaveable(stateSaver = listSaver<List<MyPodClass>, String>(
@@ -64,6 +69,7 @@ fun NaviBar(modifier: Modifier = Modifier, onSignOut: suspend () -> Unit = {}) {
                     onNavigationChange = { navigation = it }
                 )
                 "MyPod" -> MyPodScreen(
+                    loadClassSessions = loadClassSessions,
                     accessibilityEnabled = accessibilityEnabled,
                     onAccessibilityChange = { accessibilityEnabled = it },
                     classes = classes,
