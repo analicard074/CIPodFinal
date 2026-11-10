@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -47,7 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cipodfinal.shared.generated.resources.Res
 import cipodfinal.shared.generated.resources.accessibility
-import cipodfinal.shared.generated.resources.placeholder_map
+import cipodfinal.shared.generated.resources.dolphin_squad
 import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.data.ClassSession
 import kotlinx.coroutines.CancellationException
@@ -113,12 +114,21 @@ fun MyPodScreen(
         }
 
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            Image(
-                painter = painterResource(Res.drawable.placeholder_map),
-                contentDescription = "Campus map",
-                modifier = Modifier.matchParentSize(),
-                contentScale = ContentScale.Crop
-            )
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth()
+                    .padding(bottom = 25.dp)
+                    .aspectRatio(1f),
+            ) {
+                Image(
+                    painter = painterResource(Res.drawable.dolphin_squad),
+                    contentDescription = null,
+                    modifier = Modifier.matchParentSize(),
+                    contentScale = ContentScale.Fit,
+                    alignment = Alignment.BottomCenter,
+                )
+            }
 
             Column(
                 modifier = Modifier
