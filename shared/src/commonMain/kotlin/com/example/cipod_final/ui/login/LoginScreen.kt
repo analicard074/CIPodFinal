@@ -173,7 +173,7 @@ fun LoginScreen(
                     enabled = !isLoading,
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("App password") },
+                    label = { Text("Password") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium,
                     colors = fieldColors,

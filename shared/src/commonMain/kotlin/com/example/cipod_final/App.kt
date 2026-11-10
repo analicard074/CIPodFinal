@@ -22,10 +22,13 @@ fun App(onLoginSuccess: () -> Unit = {}) {
 
     CIPodTheme {
         if (isLoggedIn) {
-            NaviBar(onSignOut = {
-                firebase?.auth?.signOut()
-                isLoggedIn = false
-            })
+            NaviBar(
+                loadClassSessions = { checkNotNull(firebase).getClassSessions() },
+                onSignOut = {
+                    firebase?.auth?.signOut()
+                    isLoggedIn = false
+                },
+            )
             LaunchedEffect(Unit) {
                 onLoginSuccess()
             }
