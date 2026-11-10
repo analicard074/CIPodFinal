@@ -6,6 +6,7 @@ import org.jetbrains.compose.resources.DrawableResource
 sealed interface FloorPlanContent {
     data class Demonstration(val variant: String) : FloorPlanContent
     data class ApprovedImage(val resource: DrawableResource) : FloorPlanContent
+    data class ReferenceDraftImage(val resource: DrawableResource) : FloorPlanContent
 }
 
 data class FloorPlan(
@@ -19,10 +20,12 @@ data class FloorPlan(
     val reviewedOn: String? = null
 ) {
     val isDemonstration: Boolean get() = content is FloorPlanContent.Demonstration
+    val isReferenceDraft: Boolean get() = content is FloorPlanContent.ReferenceDraftImage
+    val isApproved: Boolean get() = content is FloorPlanContent.ApprovedImage
     init {
         require(id.isNotBlank() && buildingId.isNotBlank() && revision.isNotBlank())
         require(aspectRatio.isFinite() && aspectRatio > 0)
-        require(isDemonstration || (!sourceUrl.isNullOrBlank() && !reviewedOn.isNullOrBlank())) {
+        require(!isApproved || (!sourceUrl.isNullOrBlank() && !reviewedOn.isNullOrBlank())) {
             "Approved plans require a reviewed source; editing does not verify a plan."
         }
     }

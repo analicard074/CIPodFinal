@@ -76,6 +76,11 @@ class RoomDirectoryTest {
         val registry = RoomLocationRegistry(listOf(location.copy(floorPlanId = demo.id, planRevision = demo.revision)))
         assertNull(registry.find(room, listOf(demo)))
     }
+    @Test fun referenceDraftCannotVerifyRoomPositionEvenWithMatchingEvidence() {
+        val draft = FloorPlanCatalog.plans.first { it.isReferenceDraft }
+        val plausibleButUnapproved = location.copy(floorPlanId = draft.id, planRevision = draft.revision)
+        assertNull(RoomLocationRegistry(listOf(plausibleButUnapproved)).find(room, listOf(draft)))
+    }
     @Test fun missingEvidenceOrWrongRoomCannotResolve() {
         listOf(location.copy(sourceUrl = ""), location.copy(reviewedOn = ""),
             location.copy(buildingId = "gateway-hall"), location.copy(roomId = "another-room")).forEach {

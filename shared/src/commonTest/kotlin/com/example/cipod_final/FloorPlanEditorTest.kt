@@ -73,6 +73,16 @@ class FloorPlanEditorTest {
         assertEquals(PlanPoint(.9f, .9f), state.markers(plan).single().position)
         assertTrue(state.markers(FloorPlanCatalog.plans[1]).isEmpty())
     }
+    @Test fun changingPlanRevisionDoesNotCarryOverOldEditorDrafts() {
+        val state = editor()
+        state.move(plan, sample.id, PlanPoint(.9f, .9f))
+        val revised = plan.copy(revision = "${plan.revision}-next")
+        assertFalse(state.loaded(revised))
+        assertTrue(state.markers(revised).isEmpty())
+        state.load(revised, emptyList())
+        assertTrue(state.markers(revised).isEmpty())
+        assertEquals(PlanPoint(.9f, .9f), state.markers(plan).single().position)
+    }
     @Test fun readOnlyPreviewBlocksEditsButKeepsDraft() {
         val state = editor()
         state.move(plan, sample.id, PlanPoint(.9f, .9f))

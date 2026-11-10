@@ -79,6 +79,11 @@ internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState,
                             color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleSmall)
                         Text("Demonstration layouts are fictional test canvases, not verified floor plans or floor numbers.",
                             style = MaterialTheme.typography.bodySmall)
+                    } else if (plan.isReferenceDraft) {
+                        Text("Reference-based draft — not verified.", color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.titleSmall)
+                        Text("Room positions remain pending verification. Review the east connector, lower-right wing, doors, and partitions.",
+                            style = MaterialTheme.typography.bodySmall)
                     } else Text("Reviewed plan • ${plan.reviewedOn}", style = MaterialTheme.typography.bodySmall)
                     Row(Modifier.horizontalScroll(rememberScrollState())) {
                         TextButton(onClick = {
@@ -151,7 +156,7 @@ internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState,
     }
     if (selected != null && !editor.editing && !showMarkers) {
         AlertDialog(onDismissRequest = { selectedMarkerId = null }, title = { Text(selected.name) },
-            text = { Text("${selected.type.label}${if (plan.isDemonstration) " • fictional demonstration marker" else ""}") },
+            text = { Text("${selected.type.label}${when { plan.isDemonstration -> " • fictional demonstration marker"; plan.isReferenceDraft -> " • unverified draft marker"; else -> "" }}") },
             confirmButton = { TextButton(onClick = { selectedMarkerId = null }) { Text("Close") } })
     }
     exportJson?.let { json ->

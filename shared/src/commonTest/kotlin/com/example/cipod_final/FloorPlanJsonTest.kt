@@ -21,6 +21,13 @@ class FloorPlanJsonTest {
     @Test fun emptyPlanRoundTrips() {
         assertTrue(FloorPlanJson.decode(plan, FloorPlanJson.encode(plan, emptyList())).isEmpty())
     }
+    @Test fun draftExportRetainsExplicitUnverifiedStatus() {
+        val draft = FloorPlanCatalog.plans.first { it.isReferenceDraft }
+        val json = FloorPlanJson.encode(draft, emptyList())
+        assertTrue(json.contains("\"planStatus\": \"reference-draft\""))
+        assertTrue(FloorPlanJson.decode(draft, json).isEmpty())
+        assertFails { FloorPlanJson.decode(draft, json.replace("reference-draft", "approved")) }
+    }
     @Test fun otherPlanCannotReceiveThisDocumentsMarkers() {
         assertFails { FloorPlanJson.decode(FloorPlanCatalog.plans[1], encoded) }
     }
@@ -28,7 +35,7 @@ class FloorPlanJsonTest {
         listOf(
             encoded.replace("sierra-hall", "gateway-hall"),
             encoded.replace("demo-1", "changed-revision"),
-            encoded.replace("\"schemaVersion\": 1", "\"schemaVersion\": 9"),
+            encoded.replace("\"schemaVersion\": 2", "\"schemaVersion\": 9"),
             encoded.replace("\"demonstration\": true", "\"demonstration\": false")
         ).forEach { text -> assertFails { FloorPlanJson.decode(plan, text) } }
     }

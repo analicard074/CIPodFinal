@@ -19,7 +19,7 @@ class RoomLocationRegistry(
             location.roomId == room.id && location.buildingId == room.buildingId &&
                 location.sourceUrl.isNotBlank() && location.reviewedOn.isNotBlank() &&
                 plans.any { plan ->
-                    !plan.isDemonstration && plan.buildingId == room.buildingId &&
+                    plan.isApproved && plan.buildingId == room.buildingId &&
                         plan.id == location.floorPlanId && plan.revision == location.planRevision
                 }
         }

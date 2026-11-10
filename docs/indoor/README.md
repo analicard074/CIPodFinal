@@ -3,8 +3,11 @@
 This feature is implemented in shared Compose UI on Android and iOS. Sierra Hall
 has two **fictional demonstration layouts**, A and B. They assert no actual floor
 count, real room numbers, building geometry, accessibility, or evacuation paths.
-No verified real floor plans are bundled. Gateway and Broome have no indoor catalog
-entries yet. Outdoor geographic coordinates are not used for indoor markers.
+It also has a simplified Sierra Hall first-floor image traced from a user-provided
+photograph of an official evacuation-plan display. This is explicitly a
+**reference-based draft — not verified**; it is not an evacuation guide or an
+approved architectural drawing. Gateway and Broome have no indoor catalog entries
+yet. Outdoor geographic coordinates are not used for indoor markers.
 
 ## Student viewer (Stage 1)
 
@@ -13,6 +16,9 @@ Open Directions, select Sierra Hall, scroll its detail card if needed, and tap
 pinch zoom, drag-to-pan, Zoom +/−, Reset View, and a text-accessible Markers list.
 Tap a marker or its list item to see its name and type. The demonstration banner
 stays visible, including while zoomed. A/B are not real floor numbers.
+Select **First Floor • Reference draft** to view the photographed-plan trace. Its
+warning remains visible while zoomed. Its bundled marker document starts empty,
+and all 15 directory locations remain pending until individually reviewed.
 
 The viewer is a modal above the retained outdoor map composition. Back preserves
 the outdoor camera, search, details, starting point, and destination. Opening the
@@ -149,8 +155,29 @@ GPS coordinates are part of this JSON. The schema looks like:
 }
 ```
 
-The JSON is marker data only; changing its demonstration flag cannot verify a plan.
-Verification and the underlying image come from the reviewed catalog entry.
+The JSON is marker data only; changing its status cannot verify a plan. Schema v2
+records `planStatus` as `demonstration`, `reference-draft`, or `approved`; schema v1
+files remain readable for existing A/B layouts. Verification comes only from an
+approved catalog entry and the separate reviewed room-location registry. Draft
+exports never grant room verification.
+
+## Sierra first-floor reference draft
+
+`drawable/sierra_hall_first_floor_draft.png` is a 1600 × 2372 PNG (aspect
+1600/2372). It simplifies the photographed plan's footprint, northern
+cross-corridor, paired long corridors, major room divisions, supported stairwells,
+southern connection and lower wings. Perspective distortion and small
+door/partition details are not faithfully measurable from the photo. The east
+connector, lower-right wing and doorway details still need manual verification.
+The photograph is not bundled in the app.
+
+The catalog registers this as `sierra-first-floor-reference-draft`, revision
+`reference-draft-2`, with `FloorPlanContent.ReferenceDraftImage`. It is distinct
+from both demos and from `ApprovedImage`: it has no review date or authoritative
+URL and cannot resolve any `VerifiedRoomLocation`. Its empty matching JSON file
+keeps all marker positions unassigned. Do not add classroom numbers or directory
+positions from visual guesses. If the trace or crop changes, create a new revision
+and re-review every marker anchor.
 
 ## Add an approved real floor-plan image
 
@@ -178,8 +205,8 @@ require outdoor coordinates. No fabricated floor choices are added in advance.
 
 ## Files and architecture
 
-- `indoor/FloorPlanModels.kt`: demo/approved-image content, plan metadata, normalized points.
-- `FloorPlanCatalog.kt`: available plans by building, currently fictional Sierra A/B only.
+- `indoor/FloorPlanModels.kt`: demo/reference-draft/approved content, plan metadata, normalized points.
+- `FloorPlanCatalog.kt`: available plans by building, Sierra demos A/B and reference draft.
 - `PlanTransform.kt`: projection, inverse projection, bounded zoom/pan, drag, resize.
 - `RoomMarker.kt`: marker types/data and explicit debug/editor-request policy.
 - `FloorPlanJson.kt`: encoding/decoding and document/marker validation.

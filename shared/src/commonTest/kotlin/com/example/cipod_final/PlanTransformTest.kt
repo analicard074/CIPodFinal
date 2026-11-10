@@ -50,10 +50,21 @@ class PlanTransformTest {
         val next = t.gesture(1.2f, 0f, 0f, 180f, 210f)
         assertPoint(anchor, next.normalized(180f, 210f))
     }
-    @Test fun catalogOnlyContainsExplicitFictionalLayouts() {
+    @Test fun croppedReferenceDraftMarkersStayAlignedThroughZoomAndPan() {
+        val plan = FloorPlanCatalog.plans.first { it.isReferenceDraft }
+        val transform = PlanTransform(390f, 820f, plan.aspectRatio)
+            .gesture(2.4f, -26f, 41f, 195f, 410f)
+        val marker = PlanPoint(.64f, .38f)
+        val (screenX, screenY) = transform.screen(marker)
+        assertPoint(marker, transform.normalized(screenX, screenY))
+    }
+    @Test fun catalogPreservesDemosAndMarksTheImageAsAnUnverifiedDraft() {
         val plans = FloorPlanCatalog.forBuilding("sierra-hall")
-        assertEquals(listOf("Demo layout A", "Demo layout B"), plans.map { it.label })
-        assertTrue(plans.all { it.isDemonstration && it.sourceUrl == null })
+        assertEquals(listOf("Demo layout A", "Demo layout B", "First Floor • Reference draft"), plans.map { it.label })
+        assertTrue(plans.take(2).all { it.isDemonstration && it.sourceUrl == null })
+        assertTrue(plans[2].isReferenceDraft && !plans[2].isApproved && plans[2].reviewedOn == null)
+        assertEquals("reference-draft-2", plans[2].revision)
+        assertEquals(1600f / 2372f, plans[2].aspectRatio)
         assertTrue(FloorPlanCatalog.forBuilding("gateway-hall").isEmpty())
         assertTrue(FloorPlanCatalog.forBuilding("broome-library").isEmpty())
     }

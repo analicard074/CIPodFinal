@@ -64,8 +64,15 @@ internal fun FloorPlanCanvas(
     val placeMarker by rememberUpdatedState(onPlaceMarker)
     val moveMarker by rememberUpdatedState(onMoveMarker)
     val hitRadius = with(LocalDensity.current) { 24.dp.toPx() }
-    var transform by remember(plan.id) { mutableStateOf(PlanTransform(aspectRatio = plan.aspectRatio)) }
-    val image = (plan.content as? FloorPlanContent.ApprovedImage)?.let { imageResource(it.resource) }
+    var transform by remember(plan.id, plan.revision, plan.aspectRatio) {
+        mutableStateOf(PlanTransform(aspectRatio = plan.aspectRatio))
+    }
+    val drawable = when (val content = plan.content) {
+        is FloorPlanContent.ApprovedImage -> content.resource
+        is FloorPlanContent.ReferenceDraftImage -> content.resource
+        is FloorPlanContent.Demonstration -> null
+    }
+    val image = drawable?.let { imageResource(it) }
     val measurer = rememberTextMeasurer()
     Column(modifier) {
         Row {
@@ -80,7 +87,7 @@ internal fun FloorPlanCanvas(
         Canvas(Modifier.fillMaxSize().padding(12.dp).clipToBounds().background(Seafoam)
             .onSizeChanged { transform = transform.resized(it.width.toFloat(), it.height.toFloat()) }
             .semantics { contentDescription = "Floor plan. Pinch to zoom or use zoom buttons. ${markers.size} markers; use the Markers list for text access." }
-            .pointerInput(plan.id, editing, hitRadius) {
+            .pointerInput(plan.id, plan.revision, plan.aspectRatio, editing, hitRadius) {
                 awaitEachGesture {
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val hit = currentMarkers.asReversed().minByOrNull { marker ->

@@ -19,11 +19,16 @@ object FloorPlanJson {
     fun encode(plan: FloorPlan, markers: List<RoomMarker>): String {
         require(markers.map { it.id }.distinct().size == markers.size)
         val document = buildJsonObject {
-            put("schemaVersion", 1)
+            put("schemaVersion", 2)
             put("buildingId", plan.buildingId)
             put("floorPlanId", plan.id)
             put("planRevision", plan.revision)
             put("demonstration", plan.isDemonstration)
+            put("planStatus", when {
+                plan.isDemonstration -> "demonstration"
+                plan.isReferenceDraft -> "reference-draft"
+                else -> "approved"
+            })
             put("markers", JsonArray(markers.map { marker -> buildJsonObject {
                 put("id", marker.id)
                 put("name", marker.name)
@@ -37,11 +42,20 @@ object FloorPlanJson {
 
     fun decode(plan: FloorPlan, text: String): List<RoomMarker> {
         val document = json.parseToJsonElement(text).jsonObject
-        require(document.getValue("schemaVersion").jsonPrimitive.int == 1)
+        val schemaVersion = document.getValue("schemaVersion").jsonPrimitive.int
+        require(schemaVersion in 1..2)
         require(document.getValue("buildingId").jsonPrimitive.content == plan.buildingId)
         require(document.getValue("floorPlanId").jsonPrimitive.content == plan.id)
         require(document.getValue("planRevision").jsonPrimitive.content == plan.revision)
         require(document.getValue("demonstration").jsonPrimitive.boolean == plan.isDemonstration)
+        if (schemaVersion >= 2) {
+            val expectedStatus = when {
+                plan.isDemonstration -> "demonstration"
+                plan.isReferenceDraft -> "reference-draft"
+                else -> "approved"
+            }
+            require(document.getValue("planStatus").jsonPrimitive.content == expectedStatus)
+        }
         val markers = document.getValue("markers").jsonArray.map { value ->
             val marker = value.jsonObject
             RoomMarker(
