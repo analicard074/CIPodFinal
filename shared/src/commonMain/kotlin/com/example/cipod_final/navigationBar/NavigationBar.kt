@@ -26,6 +26,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.cipod_final.data.ClassSession
 import com.example.cipod_final.buildings.CampusNavigationState
 import com.example.cipod_final.indoor.FloorPlanEditorViewModel
 import com.example.cipod_final.location.LocationSession
@@ -38,6 +39,7 @@ fun NaviBar(
     modifier: Modifier = Modifier,
     indoorEditorEnabled: Boolean = false,
     onSignOut: suspend () -> Unit = {},
+    loadClassSessions: suspend () -> List<ClassSession> = { emptyList() },
 ) {
     val indoorModel: FloorPlanEditorViewModel = viewModel(key = "indoor-editor-$indoorEditorEnabled") {
         FloorPlanEditorViewModel(indoorEditorEnabled)
@@ -82,6 +84,7 @@ fun NaviBar(
                     onNavigationChange = { navigation = it }
                 )
                 "MyPod" -> MyPodScreen(
+                    loadClassSessions = loadClassSessions,
                     accessibilityEnabled = accessibilityEnabled,
                     onAccessibilityChange = { accessibilityEnabled = it },
                     classes = classes,

@@ -27,6 +27,7 @@ fun App(
         if (isLoggedIn) {
             NaviBar(
                 indoorEditorEnabled = indoorEditorEnabled,
+                loadClassSessions = { checkNotNull(firebase).getClassSessions() },
                 onSignOut = {
                     firebase?.auth?.signOut()
                     isLoggedIn = false

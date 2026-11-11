@@ -59,7 +59,9 @@ fun SettingsScreen(
         )
         Button(
             enabled = !isSigningOut,
-            modifier = Modifier.padding(top = 24.dp),
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(top = 24.dp),
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color.White,
                 contentColor = MaterialTheme.colorScheme.error,
