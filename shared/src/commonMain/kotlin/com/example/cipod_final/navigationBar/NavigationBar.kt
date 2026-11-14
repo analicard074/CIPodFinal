@@ -37,10 +37,13 @@ fun NaviBar(
     loadClassSessions: suspend () -> List<ClassSession> = { emptyList() },
 ) {
     var selected by remember { mutableStateOf("MyPod") }
+    // Keep expansion choices across tabs, and reset them for each login/app session.
+    var classesExpanded by remember { mutableStateOf(true) }
+    var clubsExpanded by remember { mutableStateOf(false) }
     var accessibilityEnabled by rememberSaveable { mutableStateOf(false) }
     var classes by rememberSaveable(stateSaver = listSaver<List<MyPodClass>, String>(
-        save = { courses -> courses.flatMap { listOf(it.name, it.meetingTime, it.location) } },
-        restore = { values -> values.chunked(3).map { MyPodClass(it[0], it[1], it[2]) } }
+        save = { courses -> courses.flatMap { listOf(it.code, it.name, it.meetingTime, it.building, it.floorAndRoom) } },
+        restore = { values -> values.chunked(5).map { MyPodClass(it[0], it[1], it[2], it[3], it[4]) } }
     )) { mutableStateOf(emptyList<MyPodClass>()) }
 
     // Keep campus search, building preview, and destination alive across tab changes.
@@ -69,6 +72,16 @@ fun NaviBar(
                     onNavigationChange = { navigation = it }
                 )
                 "MyPod" -> MyPodScreen(
+                    classesExpanded = classesExpanded,
+                    onClassesExpandedChange = { expanded ->
+                        classesExpanded = expanded
+                        if (expanded) clubsExpanded = false
+                    },
+                    clubsExpanded = clubsExpanded,
+                    onClubsExpandedChange = { expanded ->
+                        clubsExpanded = expanded
+                        if (expanded) classesExpanded = false
+                    },
                     loadClassSessions = loadClassSessions,
                     accessibilityEnabled = accessibilityEnabled,
                     onAccessibilityChange = { accessibilityEnabled = it },

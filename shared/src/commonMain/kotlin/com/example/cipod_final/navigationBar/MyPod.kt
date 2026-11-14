@@ -2,9 +2,11 @@ package com.example.cipod_final.navigationBar
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,22 +17,29 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedButton
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,26 +49,34 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import cipodfinal.shared.generated.resources.Res
 import cipodfinal.shared.generated.resources.accessibility
+import cipodfinal.shared.generated.resources.directions
 import cipodfinal.shared.generated.resources.dolphin_squad
 import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.data.ClassSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 
 data class MyPodClass(
+    val code: String,
     val name: String,
     val meetingTime: String,
-    val location: String
+    val building: String,
+    val floorAndRoom: String,
 )
 
 @Composable
@@ -67,6 +84,10 @@ fun MyPodScreen(
     modifier: Modifier = Modifier,
     accessibilityEnabled: Boolean,
     onAccessibilityChange: (Boolean) -> Unit,
+    classesExpanded: Boolean,
+    onClassesExpandedChange: (Boolean) -> Unit,
+    clubsExpanded: Boolean,
+    onClubsExpandedChange: (Boolean) -> Unit,
     classes: List<MyPodClass>,
     onClassesChange: (List<MyPodClass>) -> Unit,
     onDirectionsClick: () -> Unit,
@@ -181,18 +202,71 @@ fun MyPodScreen(
                 }
 
                 ClassesSection(
+                    expanded = classesExpanded,
+                    onExpandedChange = onClassesExpandedChange,
                     classes = classes,
                     onClassesChange = onClassesChange,
                     onDirectionsClick = onDirectionsClick,
                     loadClassSessions = loadClassSessions,
                 )
+                CollapsiblePodSection(
+                    title = "Clubs",
+                    expanded = clubsExpanded,
+                    onExpandedChange = onClubsExpandedChange,
+                ) {
+                    Text("No clubs added yet.", style = MaterialTheme.typography.bodyMedium)
+                }
             }
         }
     }
 }
 
 @Composable
+private fun CollapsiblePodSection(
+    title: String,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(
+                    role = Role.Button,
+                    onClickLabel = if (expanded) "Collapse $title" else "Expand $title",
+                    onClick = { onExpandedChange(!expanded) },
+                )
+                .semantics {
+                    heading()
+                    stateDescription = if (expanded) "Expanded" else "Collapsed"
+                }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(title, style = MaterialTheme.typography.titleLarge)
+            Text(if (expanded) "−" else "+", style = MaterialTheme.typography.titleLarge)
+        }
+        if (expanded) {
+            Column(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(start = 16.dp, end = 16.dp, bottom = 16.dp),
+                content = content,
+            )
+        }
+    }
+}
+
+@Composable
 private fun ClassesSection(
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
     classes: List<MyPodClass>,
     onClassesChange: (List<MyPodClass>) -> Unit,
     onDirectionsClick: () -> Unit,
@@ -200,72 +274,51 @@ private fun ClassesSection(
 ) {
     var showAddClass by rememberSaveable { mutableStateOf(false) }
     var pendingRemoval by rememberSaveable { mutableStateOf<Int?>(null) }
+    val classListColor = ButtonDefaults.elevatedButtonColors().containerColor
 
-    Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+    CollapsiblePodSection(
+        title = "Classes",
+        expanded = expanded,
+        onExpandedChange = onExpandedChange,
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.Center
         ) {
-            Text(
-                text = "Classes",
-                style = MaterialTheme.typography.titleLarge,
-                modifier = Modifier.semantics { heading() }
-            )
-            TextButton(
-                onClick = { showAddClass = true }
+            ElevatedButton(
+                onClick = { showAddClass = true },
+                elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 6.dp),
             ) {
                 Text("Add class")
             }
         }
         if (classes.isEmpty()) {
-            Text("No classes added yet.", style = MaterialTheme.typography.bodyMedium)
+            Text(
+                "No classes added yet.",
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+            )
         } else {
             Column(
                 modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp)
                     .heightIn(max = 180.dp)
-                    .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .background(classListColor, MaterialTheme.shapes.medium)
+                    .verticalScroll(rememberScrollState())
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 classes.forEachIndexed { index, course ->
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(12.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text(course.name, style = MaterialTheme.typography.titleMedium)
-                                if (course.meetingTime.isNotBlank()) {
-                                    Text(
-                                        course.meetingTime,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                }
-                                if (course.location.isNotBlank()) {
-                                    Text(
-                                        course.location,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                }
-                            }
-                            TextButton(
-                                onClick = onDirectionsClick,
-                                modifier = Modifier.semantics {
-                                    contentDescription = "Open directions for ${course.name}"
-                                }
-                            ) { Text("Directions") }
-                            IconButton(
-                                onClick = { pendingRemoval = index },
-                                modifier = Modifier
-                                    .size(48.dp)
-                                    .background(Color(0xFFB3261E), CircleShape)
-                                    .semantics { contentDescription = "Remove ${course.name}" }
-                            ) { Text("×", color = Color.White, fontSize = 24.sp) }
-                        }
+                    key(course) {
+                        SwipeableClassCard(
+                            course = course,
+                            containerColor = classListColor,
+                            onRemove = { pendingRemoval = index },
+                            onDirectionsClick = onDirectionsClick,
+                        )
                     }
                 }
             }
@@ -308,6 +361,82 @@ private fun ClassesSection(
 }
 
 @Composable
+private fun SwipeableClassCard(
+    course: MyPodClass,
+    containerColor: Color,
+    onRemove: () -> Unit,
+    onDirectionsClick: () -> Unit,
+) {
+    val dismissState = rememberSwipeToDismissBoxState()
+    val scope = rememberCoroutineScope()
+
+    SwipeToDismissBox(
+        state = dismissState,
+        modifier = Modifier.fillMaxWidth(),
+        enableDismissFromStartToEnd = false,
+        onDismiss = {
+            onRemove()
+            // Return the card so cancelling the confirmation keeps it available.
+            scope.launch { dismissState.reset() }
+        },
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color(0xFFB3261E), MaterialTheme.shapes.medium)
+                    .padding(horizontal = 16.dp),
+                contentAlignment = Alignment.CenterEnd,
+            ) {
+                Text("Remove", color = Color.White)
+            }
+        },
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics {
+                    customActions = listOf(
+                        CustomAccessibilityAction("Remove ${course.name}") {
+                            onRemove()
+                            true
+                        }
+                    )
+                },
+            colors = CardDefaults.cardColors(containerColor = containerColor),
+            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 12.dp, bottom = 12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(top = 10.dp, end = 8.dp),
+                ) {
+                    ClassDetails(course)
+                }
+                FilledIconButton(
+                    onClick = onDirectionsClick,
+                    modifier = Modifier
+                        .align(Alignment.Bottom)
+                        .padding(end = 8.dp)
+                        .size(50.dp),
+                ) {
+                    Icon(
+                        painter = painterResource(Res.drawable.directions),
+                        contentDescription = "Open directions for ${course.name}",
+                        modifier = Modifier.size(30.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun AddClassDialog(
     classes: List<MyPodClass>,
     loadClassSessions: suspend () -> List<ClassSession>,
@@ -326,7 +455,7 @@ private fun AddClassDialog(
         loading = true
         loadFailed = false
         try {
-            sessions = withTimeout(20_000) { loadClassSessions() }
+            sessions = withTimeout(20.seconds) { loadClassSessions() }
         } catch (error: TimeoutCancellationException) {
             loadFailed = true
         } catch (error: CancellationException) {
@@ -348,6 +477,7 @@ private fun AddClassDialog(
         }
     }
     val selectedClass = selectedSession?.toMyPodClass()
+    val searchFieldColor = ButtonDefaults.elevatedButtonColors().containerColor
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -365,6 +495,12 @@ private fun AddClassDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     enabled = !loading && !loadFailed,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = searchFieldColor,
+                        unfocusedContainerColor = searchFieldColor,
+                        disabledContainerColor = searchFieldColor,
+                        errorContainerColor = searchFieldColor,
+                    ),
                 )
                 when {
                     loading -> Text("Loading classes")
@@ -406,9 +542,7 @@ private fun AddClassDialog(
                                     enabled = !alreadyAdded
                                 )
                                 Column(modifier = Modifier.weight(1f).padding(start = 8.dp)) {
-                                    Text(course.name, style = MaterialTheme.typography.titleSmall)
-                                    Text(course.meetingTime)
-                                    Text(course.location)
+                                    ClassDetails(course)
                                     if (alreadyAdded) Text(
                                         "Already added",
                                         color = MaterialTheme.colorScheme.secondary
@@ -432,14 +566,27 @@ private fun AddClassDialog(
     )
 }
 
-// Convert the database's fields into the class card's existing display fields.
+@Composable
+private fun ClassDetails(course: MyPodClass) {
+    Column {
+        Text(course.code, style = MaterialTheme.typography.titleMedium)
+        Text(course.name, style = MaterialTheme.typography.bodyMedium)
+        Text(course.meetingTime, style = MaterialTheme.typography.bodyMedium)
+        Text(course.building, style = MaterialTheme.typography.bodyMedium)
+        Text(course.floorAndRoom, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+// Keep each display line separate when converting the database fields.
 internal fun ClassSession.toMyPodClass(): MyPodClass {
     val buildingName = CampusBuildings.find(building)?.name ?: building.replace('-', ' ')
     val meetingDays = days.joinToString(" / ")
     return MyPodClass(
-        name = "$courseCode: $courseName",
-        meetingTime = "$meetingDays ${formatClassTime(startTime)}–${formatClassTime(endTime)}",
-        location = "$buildingName, Floor $floor, Room $room",
+        code = courseCode,
+        name = courseName,
+        meetingTime = "$meetingDays / ${formatClassTime(startTime)}–${formatClassTime(endTime)}",
+        building = buildingName,
+        floorAndRoom = "Floor $floor, Room $room",
     )
 }
 
