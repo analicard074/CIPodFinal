@@ -30,6 +30,67 @@ import com.example.cipod_final.ui.map.CampusMapScreen
 
 private val CIBlue = Color(0xFF174A5D)
 
+internal const val MY_POD_CLASS_STATE_V2_MARKER = "__CIPOD_MYPOD_CLASSES_V2__"
+private const val MY_POD_CLASS_STATE_MARKER_PREFIX = "__CIPOD_MYPOD_CLASSES_V"
+
+/** Encodes a versioned payload so future class model changes can be distinguished safely. */
+internal fun encodeMyPodClassState(classes: List<MyPodClass>): List<String> =
+    listOf(MY_POD_CLASS_STATE_V2_MARKER) + classes.flatMap { course ->
+        listOf(course.code, course.name, course.meetingTime, course.building, course.floorAndRoom)
+    }
+
+/** Restores the current format or migrates complete records from the original three-field format. */
+internal fun restoreMyPodClassState(values: List<String>): List<MyPodClass> {
+    if (values.isEmpty()) return emptyList()
+
+    val version = savedStateVersion(values.first())
+    return when {
+        version == "2" -> restoreCurrentClassRecords(values.drop(1))
+        version != null -> emptyList() // Unknown versions are not interpreted as legacy records.
+        else -> restoreLegacyClassRecords(values)
+    }
+}
+
+private fun savedStateVersion(value: String): String? {
+    if (!value.startsWith(MY_POD_CLASS_STATE_MARKER_PREFIX) || !value.endsWith("__")) return null
+    val version = value.removePrefix(MY_POD_CLASS_STATE_MARKER_PREFIX).removeSuffix("__")
+    return version.takeIf { it.isNotEmpty() && it.all(Char::isDigit) }
+}
+
+private fun restoreCurrentClassRecords(values: List<String>): List<MyPodClass> =
+    values.chunked(5).mapNotNull { record ->
+        if (record.size != 5) return@mapNotNull null
+        MyPodClass(record[0], record[1], record[2], record[3], record[4])
+    }
+
+private fun restoreLegacyClassRecords(values: List<String>): List<MyPodClass> =
+    values.chunked(3).mapNotNull { record ->
+        if (record.size != 3) return@mapNotNull null
+
+        // The old display name was always saved as "$courseCode: $courseName".
+        val nameSeparator = record[0].indexOf(": ")
+        if (nameSeparator <= 0) return@mapNotNull null
+
+        val legacyLocation = record[2]
+        val locationParts = LEGACY_LOCATION_PATTERN.matchEntire(legacyLocation)
+        // Only split the exact format previously generated from the catalog. Unknown text is
+        // intentionally omitted instead of guessing which parts are buildings, floors, or rooms.
+        val building = locationParts?.groupValues?.get(1).orEmpty()
+        val floorAndRoom = locationParts?.let {
+            "Floor ${it.groupValues[2]}, Room ${it.groupValues[3]}"
+        }.orEmpty()
+
+        MyPodClass(
+            code = record[0].substring(0, nameSeparator),
+            name = record[0].substring(nameSeparator + 2),
+            meetingTime = record[1],
+            building = building,
+            floorAndRoom = floorAndRoom,
+        )
+    }
+
+private val LEGACY_LOCATION_PATTERN = Regex("^(.+), Floor (.+), Room (.+)$")
+
 @Composable
 fun NaviBar(
     modifier: Modifier = Modifier,
@@ -42,8 +103,8 @@ fun NaviBar(
     var clubsExpanded by remember { mutableStateOf(false) }
     var accessibilityEnabled by rememberSaveable { mutableStateOf(false) }
     var classes by rememberSaveable(stateSaver = listSaver<List<MyPodClass>, String>(
-        save = { courses -> courses.flatMap { listOf(it.code, it.name, it.meetingTime, it.building, it.floorAndRoom) } },
-        restore = { values -> values.chunked(5).map { MyPodClass(it[0], it[1], it[2], it[3], it[4]) } }
+        save = { courses -> encodeMyPodClassState(courses) },
+        restore = ::restoreMyPodClassState,
     )) { mutableStateOf(emptyList<MyPodClass>()) }
 
     // Keep campus search, building preview, and destination alive across tab changes.
