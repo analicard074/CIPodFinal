@@ -2,7 +2,13 @@ package com.example.cipod_final.data
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.example.cipod_final.data.firestore.FirebaseMyPodRepository
+import com.example.cipod_final.data.firestore.SavedMyPod
 import com.example.cipod_final.data.firestore.UserProfile
+import com.example.cipod_final.navigationBar.encodeMyPodClassState
+import com.example.cipod_final.navigationBar.encodeMyPodClubState
+import com.example.cipod_final.navigationBar.toMyPodClass
+import com.example.cipod_final.navigationBar.toMyPodClub
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.FirebaseOptions
 import dev.gitlive.firebase.auth.FirebaseAuthException
@@ -48,6 +54,8 @@ class FirebaseEmulatorTest {
                 val catalogDocumentId = seedLocalClassCatalog()
                 val clubDocumentId = seedLocalClubCatalog()
                 assertNull(repositories.auth.currentUser)
+                assertFailsWith<IllegalStateException> { repositories.myPod.load() }
+                assertFailsWith<IllegalStateException> { repositories.myPod.save(SavedMyPod()) }
                 assertFailsWith<IllegalStateException> { repositories.getClassSessions() }
                 assertFailsWith<IllegalStateException> { repositories.getClubs() }
                 assertFailsWith<IllegalStateException> { repositories.profiles.getCurrentUserProfile() }
@@ -89,12 +97,22 @@ class FirebaseEmulatorTest {
                     repositories.profiles.getCurrentUserProfile()
                 )
 
+                assertEquals(SavedMyPod(), repositories.myPod.load())
+                val savedSelections = SavedMyPod(
+                    encodeMyPodClassState(listOf(expectedSession.toMyPodClass())),
+                    encodeMyPodClubState(listOf(expectedClub.toMyPodClub())),
+                )
+                repositories.myPod.save(savedSelections)
+                // A new repository has no screen state or retained selection lists.
+                assertEquals(savedSelections, FirebaseMyPodRepository(repositories.auth, firestore).load())
+
                 repositories.auth.signOut()
                 assertFailsWith<FirebaseAuthException> {
                     repositories.authenticate(email, "incorrect", createAccount = false)
                 }
                 repositories.authenticate(email, password, createAccount = false)
                 assertEquals(user.uid, repositories.auth.authState.first { it != null }?.uid)
+                assertEquals(savedSelections, repositories.myPod.load())
                 val nextProfile = ownDocument.get(Source.SERVER)
                 assertEquals(createdAt, nextProfile.get<Timestamp>("createdAt"))
                 assertEquals(
@@ -125,6 +143,16 @@ class FirebaseEmulatorTest {
                     firestore.collection("users").get(Source.SERVER)
                 }
 
+                assertFailsWith<FirebaseFirestoreException> {
+                    firestore.collection("users").document("another-user").update(
+                        mapOf("myPodClasses" to emptyList<String>(), "myPodClubs" to emptyList<String>())
+                    )
+                }
+                // Removing every selection must persist too, without changing login timestamps.
+                repositories.myPod.save(SavedMyPod())
+                assertEquals(SavedMyPod(), FirebaseMyPodRepository(repositories.auth, firestore).load())
+                assertEquals(nextLogin, ownDocument.get(Source.SERVER).get<Timestamp>("lastLoginAt"))
+
                 // A login also repairs a profile missing after a failed registration write.
                 repositories.auth.signOut()
                 val repairEmail = "repair-${UUID.randomUUID()}@csuci.edu"
@@ -136,6 +164,7 @@ class FirebaseEmulatorTest {
                     repairEmail.substringBefore('@'),
                     repositories.profiles.getCurrentUserProfile()?.displayName
                 )
+                assertEquals(SavedMyPod(), repositories.myPod.load())
                 repositories.auth.signOut()
                 assertNull(repositories.auth.authState.first())
                 assertFailsWith<FirebaseFirestoreException> {
