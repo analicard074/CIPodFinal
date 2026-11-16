@@ -7,6 +7,10 @@ service cloud.firestore {
       allow read: if request.auth != null;
     }
 
+    match /clubs/{clubId} {
+      allow read: if request.auth != null;
+    }
+
     match /users/{uid} {
       function ownsProfile() {
         return request.auth != null && request.auth.uid == uid;

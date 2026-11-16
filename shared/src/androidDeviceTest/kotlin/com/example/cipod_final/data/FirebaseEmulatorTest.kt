@@ -23,9 +23,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.UUID
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
@@ -75,7 +75,8 @@ class FirebaseEmulatorTest {
                     startTime = 540,
                 )
                 assertTrue(expectedSession in repositories.getClassSessions())
-                val catalogDocument = firestore.collection("classSessions").document(catalogDocumentId)
+                val catalogDocument =
+                    firestore.collection("classSessions").document(catalogDocumentId)
                 assertFailsWith<FirebaseFirestoreException> { catalogDocument.set(expectedSession) }
                 assertFailsWith<FirebaseFirestoreException> { catalogDocument.delete() }
                 val expectedClub = Club(
@@ -103,8 +104,11 @@ class FirebaseEmulatorTest {
                     encodeMyPodClubState(listOf(expectedClub.toMyPodClub())),
                 )
                 repositories.myPod.save(savedSelections)
-                // A new repository has no screen state or retained selection lists.
-                assertEquals(savedSelections, FirebaseMyPodRepository(repositories.auth, firestore).load())
+                // A new repository reloads this user's selections from Firebase.
+                assertEquals(
+                    savedSelections,
+                    FirebaseMyPodRepository(repositories.auth, firestore).load()
+                )
 
                 repositories.auth.signOut()
                 assertFailsWith<FirebaseAuthException> {
@@ -145,13 +149,22 @@ class FirebaseEmulatorTest {
 
                 assertFailsWith<FirebaseFirestoreException> {
                     firestore.collection("users").document("another-user").update(
-                        mapOf("myPodClasses" to emptyList<String>(), "myPodClubs" to emptyList<String>())
+                        mapOf(
+                            "myPodClasses" to emptyList<String>(),
+                            "myPodClubs" to emptyList<String>()
+                        )
                     )
                 }
                 // Removing every selection must persist too, without changing login timestamps.
                 repositories.myPod.save(SavedMyPod())
-                assertEquals(SavedMyPod(), FirebaseMyPodRepository(repositories.auth, firestore).load())
-                assertEquals(nextLogin, ownDocument.get(Source.SERVER).get<Timestamp>("lastLoginAt"))
+                assertEquals(
+                    SavedMyPod(),
+                    FirebaseMyPodRepository(repositories.auth, firestore).load()
+                )
+                assertEquals(
+                    nextLogin,
+                    ownDocument.get(Source.SERVER).get<Timestamp>("lastLoginAt")
+                )
 
                 // A login also repairs a profile missing after a failed registration write.
                 repositories.auth.signOut()
@@ -197,7 +210,8 @@ class FirebaseEmulatorTest {
             connection.setRequestProperty("Authorization", "Bearer owner")
             connection.setRequestProperty("Content-Type", "application/json")
             connection.outputStream.bufferedWriter().use { writer ->
-                writer.write("""{"fields":{
+                writer.write(
+                    """{"fields":{
                     "building":{"stringValue":"gateway-hall"},
                     "courseCode":{"stringValue":"COMP 105"},
                     "courseName":{"stringValue":"Introduction To Programming"},
@@ -206,7 +220,8 @@ class FirebaseEmulatorTest {
                     "floor":{"integerValue":"3"},
                     "room":{"stringValue":"3570"},
                     "startTime":{"integerValue":"540"}
-                }}""")
+                }}"""
+                )
             }
             assertEquals(200, connection.responseCode)
         } finally {
@@ -229,10 +244,12 @@ class FirebaseEmulatorTest {
             connection.setRequestProperty("Authorization", "Bearer owner")
             connection.setRequestProperty("Content-Type", "application/json")
             connection.outputStream.bufferedWriter().use { writer ->
-                writer.write("""{"fields":{
+                writer.write(
+                    """{"fields":{
                     "clubID":{"stringValue":"Data Science Club"},
                     "clubDescription":{"stringValue":"A collaborative community for Data Science."}
-                }}""")
+                }}"""
+                )
             }
             assertEquals(200, connection.responseCode)
         } finally {

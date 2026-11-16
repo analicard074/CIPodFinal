@@ -26,7 +26,7 @@ fun App(onLoginSuccess: () -> Unit = {}) {
                 loadClassSessions = { checkNotNull(firebase).getClassSessions() },
                 loadClubs = { checkNotNull(firebase).getClubs() },
                 loadMyPod = { checkNotNull(firebase).myPod.load() },
-                saveMyPod = { checkNotNull(firebase).myPod.save(it) },
+                saveMyPod = { selections -> checkNotNull(firebase).myPod.save(selections) },
                 onSignOut = {
                     firebase?.auth?.signOut()
                     isLoggedIn = false
