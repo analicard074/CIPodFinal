@@ -2,7 +2,13 @@ package com.example.cipod_final.data
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.example.cipod_final.data.firestore.FirebaseMyPodRepository
+import com.example.cipod_final.data.firestore.SavedMyPod
 import com.example.cipod_final.data.firestore.UserProfile
+import com.example.cipod_final.navigationBar.encodeMyPodClassState
+import com.example.cipod_final.navigationBar.encodeMyPodClubState
+import com.example.cipod_final.navigationBar.toMyPodClass
+import com.example.cipod_final.navigationBar.toMyPodClub
 import dev.gitlive.firebase.Firebase
 import dev.gitlive.firebase.FirebaseOptions
 import dev.gitlive.firebase.auth.FirebaseAuthException
@@ -17,9 +23,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.UUID
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
@@ -46,8 +52,12 @@ class FirebaseEmulatorTest {
             val firestore = Firebase.firestore(app)
             try {
                 val catalogDocumentId = seedLocalClassCatalog()
+                val clubDocumentId = seedLocalClubCatalog()
                 assertNull(repositories.auth.currentUser)
+                assertFailsWith<IllegalStateException> { repositories.myPod.load() }
+                assertFailsWith<IllegalStateException> { repositories.myPod.save(SavedMyPod()) }
                 assertFailsWith<IllegalStateException> { repositories.getClassSessions() }
+                assertFailsWith<IllegalStateException> { repositories.getClubs() }
                 assertFailsWith<IllegalStateException> { repositories.profiles.getCurrentUserProfile() }
                 val email = "foundation-${UUID.randomUUID()}@myci.csuci.edu"
                 // Transient test input, never saved in application state or configuration.
@@ -65,9 +75,18 @@ class FirebaseEmulatorTest {
                     startTime = 540,
                 )
                 assertTrue(expectedSession in repositories.getClassSessions())
-                val catalogDocument = firestore.collection("classSessions").document(catalogDocumentId)
+                val catalogDocument =
+                    firestore.collection("classSessions").document(catalogDocumentId)
                 assertFailsWith<FirebaseFirestoreException> { catalogDocument.set(expectedSession) }
                 assertFailsWith<FirebaseFirestoreException> { catalogDocument.delete() }
+                val expectedClub = Club(
+                    clubID = "Data Science Club",
+                    clubDescription = "A collaborative community for Data Science.",
+                )
+                assertTrue(expectedClub in repositories.getClubs())
+                val clubDocument = firestore.collection("clubs").document(clubDocumentId)
+                assertFailsWith<FirebaseFirestoreException> { clubDocument.set(expectedClub) }
+                assertFailsWith<FirebaseFirestoreException> { clubDocument.delete() }
                 val ownDocument = firestore.collection("users").document(user.uid)
                 val firstProfile = ownDocument.get(Source.SERVER)
                 val createdAt = firstProfile.get<Timestamp>("createdAt")
@@ -79,12 +98,25 @@ class FirebaseEmulatorTest {
                     repositories.profiles.getCurrentUserProfile()
                 )
 
+                assertEquals(SavedMyPod(), repositories.myPod.load())
+                val savedSelections = SavedMyPod(
+                    encodeMyPodClassState(listOf(expectedSession.toMyPodClass())),
+                    encodeMyPodClubState(listOf(expectedClub.toMyPodClub())),
+                )
+                repositories.myPod.save(savedSelections)
+                // A new repository reloads this user's selections from Firebase.
+                assertEquals(
+                    savedSelections,
+                    FirebaseMyPodRepository(repositories.auth, firestore).load()
+                )
+
                 repositories.auth.signOut()
                 assertFailsWith<FirebaseAuthException> {
                     repositories.authenticate(email, "incorrect", createAccount = false)
                 }
                 repositories.authenticate(email, password, createAccount = false)
                 assertEquals(user.uid, repositories.auth.authState.first { it != null }?.uid)
+                assertEquals(savedSelections, repositories.myPod.load())
                 val nextProfile = ownDocument.get(Source.SERVER)
                 assertEquals(createdAt, nextProfile.get<Timestamp>("createdAt"))
                 assertEquals(
@@ -115,6 +147,25 @@ class FirebaseEmulatorTest {
                     firestore.collection("users").get(Source.SERVER)
                 }
 
+                assertFailsWith<FirebaseFirestoreException> {
+                    firestore.collection("users").document("another-user").update(
+                        mapOf(
+                            "myPodClasses" to emptyList<String>(),
+                            "myPodClubs" to emptyList<String>()
+                        )
+                    )
+                }
+                // Removing every selection must persist too, without changing login timestamps.
+                repositories.myPod.save(SavedMyPod())
+                assertEquals(
+                    SavedMyPod(),
+                    FirebaseMyPodRepository(repositories.auth, firestore).load()
+                )
+                assertEquals(
+                    nextLogin,
+                    ownDocument.get(Source.SERVER).get<Timestamp>("lastLoginAt")
+                )
+
                 // A login also repairs a profile missing after a failed registration write.
                 repositories.auth.signOut()
                 val repairEmail = "repair-${UUID.randomUUID()}@csuci.edu"
@@ -126,10 +177,14 @@ class FirebaseEmulatorTest {
                     repairEmail.substringBefore('@'),
                     repositories.profiles.getCurrentUserProfile()?.displayName
                 )
+                assertEquals(SavedMyPod(), repositories.myPod.load())
                 repositories.auth.signOut()
                 assertNull(repositories.auth.authState.first())
                 assertFailsWith<FirebaseFirestoreException> {
                     firestore.collection("classSessions").get(Source.SERVER)
+                }
+                assertFailsWith<FirebaseFirestoreException> {
+                    firestore.collection("clubs").get(Source.SERVER)
                 }
                 assertFailsWith<IllegalStateException> { repositories.profiles.getCurrentUserProfile() }
                 assertFailsWith<FirebaseFirestoreException> { ownDocument.get(Source.SERVER) }
@@ -155,7 +210,8 @@ class FirebaseEmulatorTest {
             connection.setRequestProperty("Authorization", "Bearer owner")
             connection.setRequestProperty("Content-Type", "application/json")
             connection.outputStream.bufferedWriter().use { writer ->
-                writer.write("""{"fields":{
+                writer.write(
+                    """{"fields":{
                     "building":{"stringValue":"gateway-hall"},
                     "courseCode":{"stringValue":"COMP 105"},
                     "courseName":{"stringValue":"Introduction To Programming"},
@@ -164,7 +220,36 @@ class FirebaseEmulatorTest {
                     "floor":{"integerValue":"3"},
                     "room":{"stringValue":"3570"},
                     "startTime":{"integerValue":"540"}
-                }}""")
+                }}"""
+                )
+            }
+            assertEquals(200, connection.responseCode)
+        } finally {
+            connection.disconnect()
+        }
+        return documentId
+    }
+
+    private fun seedLocalClubCatalog(): String {
+        val documentId = "catalog-${UUID.randomUUID()}"
+        val connection = URL(
+            "http://10.0.2.2:8080/v1/projects/demo-cipod-foundation/databases/(default)/documents/clubs/$documentId"
+        ).openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "PATCH"
+            connection.connectTimeout = 5_000
+            connection.readTimeout = 5_000
+            connection.doOutput = true
+            // Emulator-only admin token: seed data that student clients cannot modify.
+            connection.setRequestProperty("Authorization", "Bearer owner")
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.outputStream.bufferedWriter().use { writer ->
+                writer.write(
+                    """{"fields":{
+                    "clubID":{"stringValue":"Data Science Club"},
+                    "clubDescription":{"stringValue":"A collaborative community for Data Science."}
+                }}"""
+                )
             }
             assertEquals(200, connection.responseCode)
         } finally {

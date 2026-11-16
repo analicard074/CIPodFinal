@@ -2,6 +2,7 @@ package com.example.cipod_final.data
 
 import com.example.cipod_final.data.auth.AuthRepository
 import com.example.cipod_final.data.auth.FirebaseAuthRepository
+import com.example.cipod_final.data.firestore.FirebaseMyPodRepository
 import com.example.cipod_final.data.firestore.FirebaseUserProfileRepository
 import com.example.cipod_final.data.firestore.UserProfileRepository
 import dev.gitlive.firebase.Firebase
@@ -20,6 +21,8 @@ class FirebaseRepositories private constructor(
     val profiles: UserProfileRepository,
     private val firestore: FirebaseFirestore,
 ) {
+    val myPod = FirebaseMyPodRepository(auth, firestore)
+
     // Open the main screen only after both authentication and profile saving succeed.
     suspend fun authenticate(email: String, password: String, createAccount: Boolean) {
         if (createAccount) {
@@ -55,6 +58,19 @@ class FirebaseRepositories private constructor(
             }
             session
         }.sortedWith(compareBy({ it.courseCode }, { it.days.joinToString(",") }, { it.startTime }))
+    }
+
+    // Read-only shared catalog, matching the Classes flow.
+    suspend fun getClubs(): List<Club> {
+        checkNotNull(auth.currentUser) { "Please log in to view clubs." }
+        val snapshot = firestore.collection("clubs").get()
+        return snapshot.documents.map { document ->
+            val session = document.data<Club>()
+            require(session.clubID.isNotBlank()) {
+                "Club ${document.id} needs a clubID name."
+            }
+            session
+        }.sortedBy { it.clubID.lowercase() }
     }
 
     companion object {
@@ -102,4 +118,11 @@ data class ClassSession(
     val floor: Int,
     val room: String,
     val startTime: Int,
+)
+
+// Field names match the existing clubs collection; clubID contains the display name.
+@Serializable
+data class Club(
+    val clubID: String,
+    val clubDescription: String,
 )

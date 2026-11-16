@@ -1,21 +1,25 @@
 package com.example.cipod_final.navigationBar
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -24,9 +28,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.cipod_final.data.ClassSession
 import com.example.cipod_final.buildings.CampusNavigationState
+import com.example.cipod_final.data.ClassSession
+import com.example.cipod_final.data.Club
+import com.example.cipod_final.data.firestore.SavedMyPod
 import com.example.cipod_final.ui.map.CampusMapScreen
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
+import kotlin.time.Duration.Companion.seconds
 
 private val CIBlue = Color(0xFF174A5D)
 
@@ -96,21 +107,88 @@ fun NaviBar(
     modifier: Modifier = Modifier,
     onSignOut: suspend () -> Unit = {},
     loadClassSessions: suspend () -> List<ClassSession> = { emptyList() },
+    loadClubs: suspend () -> List<Club> = { emptyList() },
+    loadMyPod: suspend () -> SavedMyPod = { SavedMyPod() },
+    saveMyPod: suspend (SavedMyPod) -> Unit = {},
 ) {
     var selected by remember { mutableStateOf("MyPod") }
     // Keep expansion choices across tabs, and reset them for each login/app session.
     var classesExpanded by remember { mutableStateOf(true) }
     var clubsExpanded by remember { mutableStateOf(false) }
     var accessibilityEnabled by rememberSaveable { mutableStateOf(false) }
-    var classes by rememberSaveable(stateSaver = listSaver<List<MyPodClass>, String>(
-        save = { courses -> encodeMyPodClassState(courses) },
-        restore = ::restoreMyPodClassState,
-    )) { mutableStateOf(emptyList<MyPodClass>()) }
+    var isLoading by remember { mutableStateOf(true) }
+    var loadFailed by remember { mutableStateOf(false) }
+    var reloadCount by remember { mutableStateOf(0) }
+    var isSaving by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    var savedSelections by remember { mutableStateOf(SavedMyPod()) }
+    val scope = rememberCoroutineScope()
+
+    // Keep one saved copy. The lists shown on screen come from this copy.
+    val classes = restoreMyPodClassState(savedSelections.myPodClasses)
+    val clubs = restoreMyPodClubState(savedSelections.myPodClubs)
+
+    // Load this user's selections when MyPod opens, or after Retry.
+    LaunchedEffect(reloadCount) {
+        isLoading = true
+        loadFailed = false
+        try {
+            savedSelections = withTimeout(20.seconds) { loadMyPod() }
+        } catch (error: TimeoutCancellationException) {
+            loadFailed = true
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            loadFailed = true
+        } finally {
+            isLoading = false
+        }
+    }
+
+    // Save each add/remove immediately. Update the screen only after Firebase saves it.
+    fun updateSelections(nextClasses: List<MyPodClass>, nextClubs: List<MyPodClub>) {
+        if (isLoading || loadFailed || isSaving) return
+        isSaving = true
+        scope.launch {
+            try {
+                val updatedSelections = SavedMyPod(
+                    myPodClasses = encodeMyPodClassState(nextClasses),
+                    myPodClubs = encodeMyPodClubState(nextClubs),
+                )
+                withTimeout(20.seconds) { saveMyPod(updatedSelections) }
+                savedSelections = updatedSelections
+            } catch (error: TimeoutCancellationException) {
+                saveError =
+                    "Your change could not be confirmed. Check your connection and try again."
+                reloadCount++
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                saveError =
+                    "Your change could not be confirmed. Check your connection and try again."
+                reloadCount++
+            } finally {
+                isSaving = false
+            }
+        }
+    }
 
     // Keep campus search, building preview, and destination alive across tab changes.
-    var navigation by rememberSaveable(stateSaver = listSaver<CampusNavigationState, String>(
-        save = { listOf(it.query, it.selectedBuildingId.orEmpty(), it.destinationId.orEmpty()) },
-        restore = { CampusNavigationState(it[0], it[1].ifEmpty { null }, it[2].ifEmpty { null }) }
+    var navigation by rememberSaveable(
+        stateSaver = listSaver<CampusNavigationState, String>(
+        save = {
+            listOf(
+                it.query,
+                it.selectedBuildingId.orEmpty(),
+                it.destinationId.orEmpty()
+            )
+        },
+        restore = {
+            CampusNavigationState(
+                it[0],
+                it[1].ifEmpty { null },
+                it[2].ifEmpty { null })
+        }
     )) { mutableStateOf(CampusNavigationState()) }
 
     Scaffold(
@@ -132,7 +210,15 @@ fun NaviBar(
                     navigation = navigation,
                     onNavigationChange = { navigation = it }
                 )
-                "MyPod" -> MyPodScreen(
+
+                "MyPod" -> if (isLoading || loadFailed) {
+                    Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+                        Text(if (isLoading) "Loading MyPod…" else "Unable to load your saved classes and clubs.")
+                        if (loadFailed) {
+                            TextButton(onClick = { reloadCount++ }) { Text("Retry") }
+                        }
+                    }
+                } else MyPodScreen(
                     classesExpanded = classesExpanded,
                     onClassesExpandedChange = { expanded ->
                         classesExpanded = expanded
@@ -144,17 +230,22 @@ fun NaviBar(
                         if (expanded) classesExpanded = false
                     },
                     loadClassSessions = loadClassSessions,
+                    loadClubs = loadClubs,
+                    clubs = clubs,
+                    onClubsChange = { updateSelections(classes, it) },
                     accessibilityEnabled = accessibilityEnabled,
                     onAccessibilityChange = { accessibilityEnabled = it },
                     classes = classes,
-                    onClassesChange = { classes = it },
+                    onClassesChange = { updateSelections(it, clubs) },
                     onDirectionsClick = { selected = "Directions" }
                 )
+
                 "Settings" -> SettingsScreen(
                     onSignOut = onSignOut,
                     accessibilityEnabled = accessibilityEnabled,
                     onAccessibilityChange = { accessibilityEnabled = it }
                 )
+
                 else -> Text(
                     text = selected,
                     modifier = Modifier
@@ -167,6 +258,25 @@ fun NaviBar(
             }
         }
     }
+
+    if (isSaving) {
+        AlertDialog(
+            onDismissRequest = {},
+            title = { Text("Saving MyPod…") },
+            confirmButton = {},
+        )
+    }
+    saveError?.let { message ->
+        AlertDialog(
+            onDismissRequest = { saveError = null },
+            title = { Text("Unable to save MyPod") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = { saveError = null }) { Text("Close") }
+            },
+        )
+    }
+
 }
 
 @Composable
