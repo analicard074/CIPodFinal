@@ -46,8 +46,10 @@ class FirebaseEmulatorTest {
             val firestore = Firebase.firestore(app)
             try {
                 val catalogDocumentId = seedLocalClassCatalog()
+                val clubDocumentId = seedLocalClubCatalog()
                 assertNull(repositories.auth.currentUser)
                 assertFailsWith<IllegalStateException> { repositories.getClassSessions() }
+                assertFailsWith<IllegalStateException> { repositories.getClubs() }
                 assertFailsWith<IllegalStateException> { repositories.profiles.getCurrentUserProfile() }
                 val email = "foundation-${UUID.randomUUID()}@myci.csuci.edu"
                 // Transient test input, never saved in application state or configuration.
@@ -68,6 +70,14 @@ class FirebaseEmulatorTest {
                 val catalogDocument = firestore.collection("classSessions").document(catalogDocumentId)
                 assertFailsWith<FirebaseFirestoreException> { catalogDocument.set(expectedSession) }
                 assertFailsWith<FirebaseFirestoreException> { catalogDocument.delete() }
+                val expectedClub = Club(
+                    clubID = "Data Science Club",
+                    clubDescription = "A collaborative community for Data Science.",
+                )
+                assertTrue(expectedClub in repositories.getClubs())
+                val clubDocument = firestore.collection("clubs").document(clubDocumentId)
+                assertFailsWith<FirebaseFirestoreException> { clubDocument.set(expectedClub) }
+                assertFailsWith<FirebaseFirestoreException> { clubDocument.delete() }
                 val ownDocument = firestore.collection("users").document(user.uid)
                 val firstProfile = ownDocument.get(Source.SERVER)
                 val createdAt = firstProfile.get<Timestamp>("createdAt")
@@ -131,6 +141,9 @@ class FirebaseEmulatorTest {
                 assertFailsWith<FirebaseFirestoreException> {
                     firestore.collection("classSessions").get(Source.SERVER)
                 }
+                assertFailsWith<FirebaseFirestoreException> {
+                    firestore.collection("clubs").get(Source.SERVER)
+                }
                 assertFailsWith<IllegalStateException> { repositories.profiles.getCurrentUserProfile() }
                 assertFailsWith<FirebaseFirestoreException> { ownDocument.get(Source.SERVER) }
             } finally {
@@ -164,6 +177,32 @@ class FirebaseEmulatorTest {
                     "floor":{"integerValue":"3"},
                     "room":{"stringValue":"3570"},
                     "startTime":{"integerValue":"540"}
+                }}""")
+            }
+            assertEquals(200, connection.responseCode)
+        } finally {
+            connection.disconnect()
+        }
+        return documentId
+    }
+
+    private fun seedLocalClubCatalog(): String {
+        val documentId = "catalog-${UUID.randomUUID()}"
+        val connection = URL(
+            "http://10.0.2.2:8080/v1/projects/demo-cipod-foundation/databases/(default)/documents/clubs/$documentId"
+        ).openConnection() as HttpURLConnection
+        try {
+            connection.requestMethod = "PATCH"
+            connection.connectTimeout = 5_000
+            connection.readTimeout = 5_000
+            connection.doOutput = true
+            // Emulator-only admin token: seed data that student clients cannot modify.
+            connection.setRequestProperty("Authorization", "Bearer owner")
+            connection.setRequestProperty("Content-Type", "application/json")
+            connection.outputStream.bufferedWriter().use { writer ->
+                writer.write("""{"fields":{
+                    "clubID":{"stringValue":"Data Science Club"},
+                    "clubDescription":{"stringValue":"A collaborative community for Data Science."}
                 }}""")
             }
             assertEquals(200, connection.responseCode)
