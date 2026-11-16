@@ -64,7 +64,6 @@ internal fun restoreMyPodClassState(values: List<String>): List<MyPodClass> {
         else -> restoreLegacyClassRecords(values)
     }
 }
-
 private fun savedStateVersion(value: String): String? {
     if (!value.startsWith(MY_POD_CLASS_STATE_MARKER_PREFIX) || !value.endsWith("__")) return null
     val version = value.removePrefix(MY_POD_CLASS_STATE_MARKER_PREFIX).removeSuffix("__")

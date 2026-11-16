@@ -64,8 +64,9 @@ internal fun FloorPlanCanvas(
     val placeMarker by rememberUpdatedState(onPlaceMarker)
     val moveMarker by rememberUpdatedState(onMoveMarker)
     val hitRadius = with(LocalDensity.current) { 24.dp.toPx() }
+    val defaultZoom = 1.2f
     var transform by remember(plan.id, plan.revision, plan.aspectRatio) {
-        mutableStateOf(PlanTransform(aspectRatio = plan.aspectRatio))
+        mutableStateOf(PlanTransform(aspectRatio = plan.aspectRatio,zoom = defaultZoom))
     }
     val drawable = when (val content = plan.content) {
         is FloorPlanContent.ApprovedImage -> content.resource
@@ -82,7 +83,7 @@ internal fun FloorPlanCanvas(
             TextButton(onClick = {
                 transform = transform.gesture(1 / 1.35f, 0f, 0f, transform.viewportWidth / 2, transform.viewportHeight / 2)
             }) { Text("Zoom −") }
-            TextButton(onClick = { transform = transform.copy(zoom = 1f, panX = 0f, panY = 0f) }) { Text("Reset View") }
+            TextButton(onClick = { transform = transform.copy(zoom = defaultZoom, panX = 0f, panY = 0f) }) { Text("Reset View") }
         }
         Canvas(Modifier.fillMaxSize().padding(12.dp).clipToBounds().background(Seafoam)
             .onSizeChanged { transform = transform.resized(it.width.toFloat(), it.height.toFloat()) }
