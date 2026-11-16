@@ -21,10 +21,12 @@ class SharedCommonTest {
             room = "3570",
         )
         val course = session.toMyPodClass()
-        assertEquals("COMP 105: Introduction To Programming", course.name)
-        assertEquals("Tue / Thu 9:00 AM–10:15 AM", course.meetingTime)
-        assertEquals("Wed 9:00 AM–10:15 AM", session.copy(days = listOf("Wed")).toMyPodClass().meetingTime)
-        assertEquals("Gateway Hall, Floor 3, Room 3570", course.location)
+        assertEquals("COMP 105", course.code)
+        assertEquals("Introduction To Programming", course.name)
+        assertEquals("Tue / Thu / 9:00 AM–10:15 AM", course.meetingTime)
+        assertEquals("Wed / 9:00 AM–10:15 AM", session.copy(days = listOf("Wed")).toMyPodClass().meetingTime)
+        assertEquals("Gateway Hall", course.building)
+        assertEquals("Floor 3, Room 3570", course.floorAndRoom)
     }
 
     @Test
