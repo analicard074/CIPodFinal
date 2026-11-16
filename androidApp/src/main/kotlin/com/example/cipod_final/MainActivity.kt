@@ -3,13 +3,14 @@ package com.example.cipod_final
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
-import com.example.cipod_final.indoor.IndoorEditorPolicy
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.edit
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.cipod_final.indoor.IndoorEditorPolicy
 
 class MainActivity : ComponentActivity() {
     private val locationPermissionLauncher = registerForActivityResult(
@@ -31,7 +32,7 @@ class MainActivity : ComponentActivity() {
                     if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
                         && !preferences.getBoolean("locationRequested", false)
                     ) {
-                        preferences.edit().putBoolean("locationRequested", true).apply()
+                        preferences.edit { putBoolean("locationRequested", true) }
                         locationPermissionLauncher.launch(
                             arrayOf(
                                 Manifest.permission.ACCESS_COARSE_LOCATION,

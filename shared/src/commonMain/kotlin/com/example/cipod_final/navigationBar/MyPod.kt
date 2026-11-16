@@ -31,15 +31,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -49,8 +46,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -64,11 +59,11 @@ import cipodfinal.shared.generated.resources.directions
 import cipodfinal.shared.generated.resources.dolphin_squad
 import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.data.ClassSession
+import com.example.cipod_final.data.Club
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Duration.Companion.seconds
-import kotlinx.coroutines.launch
 import org.jetbrains.compose.resources.painterResource
 
 data class MyPodClass(
@@ -92,6 +87,9 @@ fun MyPodScreen(
     onClassesChange: (List<MyPodClass>) -> Unit,
     onDirectionsClick: () -> Unit,
     loadClassSessions: suspend () -> List<ClassSession>,
+    clubs: List<MyPodClub>,
+    onClubsChange: (List<MyPodClub>) -> Unit,
+    loadClubs: suspend () -> List<Club>,
 ) {
     var search by rememberSaveable { mutableStateOf("") }
     var picked by rememberSaveable { mutableStateOf<String?>(null) }
@@ -209,20 +207,20 @@ fun MyPodScreen(
                     onDirectionsClick = onDirectionsClick,
                     loadClassSessions = loadClassSessions,
                 )
-                CollapsiblePodSection(
-                    title = "Clubs",
+                ClubsSection(
                     expanded = clubsExpanded,
                     onExpandedChange = onClubsExpandedChange,
-                ) {
-                    Text("No clubs added yet.", style = MaterialTheme.typography.bodyMedium)
-                }
+                    clubs = clubs,
+                    onClubsChange = onClubsChange,
+                    loadClubs = loadClubs,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun CollapsiblePodSection(
+internal fun CollapsiblePodSection(
     title: String,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
@@ -328,22 +326,15 @@ private fun ClassesSection(
     val removalIndex = pendingRemoval
     val classToRemove = removalIndex?.let { classes.getOrNull(it) }
     if (classToRemove != null) {
-        AlertDialog(
-            onDismissRequest = { pendingRemoval = null },
-            title = { Text("Remove class?") },
-            text = { Text("Are you sure you want to remove ${classToRemove.name} from your classes?") },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onClassesChange(classes.filterIndexed { index, _ -> index != removalIndex })
-                        pendingRemoval = null
-                    },
-                    colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFFB3261E))
-                ) { Text("Remove") }
+        RemovePodItemDialog(
+            itemType = "class",
+            name = classToRemove.name,
+            collectionName = "classes",
+            onConfirm = {
+                onClassesChange(classes.filterIndexed { index, _ -> index != removalIndex })
+                pendingRemoval = null
             },
-            dismissButton = {
-                TextButton(onClick = { pendingRemoval = null }) { Text("Cancel") }
-            }
+            onDismiss = { pendingRemoval = null },
         )
     }
 
@@ -367,70 +358,36 @@ private fun SwipeableClassCard(
     onRemove: () -> Unit,
     onDirectionsClick: () -> Unit,
 ) {
-    val dismissState = rememberSwipeToDismissBoxState()
-    val scope = rememberCoroutineScope()
-
-    SwipeToDismissBox(
-        state = dismissState,
-        modifier = Modifier.fillMaxWidth(),
-        enableDismissFromStartToEnd = false,
-        onDismiss = {
-            onRemove()
-            // Return the card so cancelling the confirmation keeps it available.
-            scope.launch { dismissState.reset() }
-        },
-        backgroundContent = {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFFB3261E), MaterialTheme.shapes.medium)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                Text("Remove", color = Color.White)
-            }
-        },
+    SwipeablePodCard(
+        name = course.name,
+        containerColor = containerColor,
+        onRemove = onRemove,
     ) {
-        Card(
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .semantics {
-                    customActions = listOf(
-                        CustomAccessibilityAction("Remove ${course.name}") {
-                            onRemove()
-                            true
-                        }
-                    )
-                },
-            colors = CardDefaults.cardColors(containerColor = containerColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+                .padding(start = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.Top,
         ) {
-            Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(start = 12.dp, bottom = 12.dp),
-                verticalAlignment = Alignment.Top,
+                    .weight(1f)
+                    .padding(top = 10.dp, end = 8.dp),
             ) {
-                Column(
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(top = 10.dp, end = 8.dp),
-                ) {
-                    ClassDetails(course)
-                }
-                FilledIconButton(
-                    onClick = onDirectionsClick,
-                    modifier = Modifier
-                        .align(Alignment.Bottom)
-                        .padding(end = 8.dp)
-                        .size(50.dp),
-                ) {
-                    Icon(
-                        painter = painterResource(Res.drawable.directions),
-                        contentDescription = "Open directions for ${course.name}",
-                        modifier = Modifier.size(30.dp),
-                    )
-                }
+                ClassDetails(course)
+            }
+            FilledIconButton(
+                onClick = onDirectionsClick,
+                modifier = Modifier
+                    .align(Alignment.Bottom)
+                    .padding(end = 8.dp)
+                    .size(50.dp),
+            ) {
+                Icon(
+                    painter = painterResource(Res.drawable.directions),
+                    contentDescription = "Open directions for ${course.name}",
+                    modifier = Modifier.size(30.dp),
+                )
             }
         }
     }
