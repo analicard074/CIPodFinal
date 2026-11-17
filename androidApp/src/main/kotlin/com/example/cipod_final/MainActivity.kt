@@ -10,6 +10,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.edit
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
+import com.example.cipod_final.indoor.IndoorEditorPolicy
 
 class MainActivity : ComponentActivity() {
     private val locationPermissionLauncher = registerForActivityResult(
@@ -21,20 +22,26 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
 
         setContent {
-            App(onLoginSuccess = {
-                val preferences = getSharedPreferences("permissions", MODE_PRIVATE)
-                if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
-                    && !preferences.getBoolean("locationRequested", false)
-                ) {
-                    preferences.edit { putBoolean("locationRequested", true) }
-                    locationPermissionLauncher.launch(
-                        arrayOf(
-                            Manifest.permission.ACCESS_COARSE_LOCATION,
-                            Manifest.permission.ACCESS_FINE_LOCATION
+            App(
+                indoorEditorEnabled = IndoorEditorPolicy.allowed(
+                    BuildConfig.DEBUG, BuildConfig.INDOOR_EDITOR_REQUESTED
+                ),
+                onLoginSuccess = {
+                    val preferences = getSharedPreferences("permissions", MODE_PRIVATE)
+                    // Suppress automatic login prompts only; Directions checks OS permission independently.
+                    if (checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED
+                        && !preferences.getBoolean("locationRequested", false)
+                    ) {
+                        preferences.edit { putBoolean("locationRequested", true) }
+                        locationPermissionLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_COARSE_LOCATION,
+                                Manifest.permission.ACCESS_FINE_LOCATION
+                            )
                         )
-                    )
+                    }
                 }
-            })
+            )
         }
     }
 }

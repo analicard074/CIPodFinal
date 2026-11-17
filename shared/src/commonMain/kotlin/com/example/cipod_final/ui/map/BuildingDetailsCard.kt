@@ -22,6 +22,8 @@ internal fun BuildingDetailsCard(
     building: CampusBuilding,
     destination: CampusBuilding?,
     onSelectDestination: () -> Unit,
+    onSelectStartingPoint: () -> Unit,
+    onViewFloorPlans: (() -> Unit)? = null,
     onClose: () -> Unit
 ) {
     Surface(color = MaterialTheme.colorScheme.surface) {
@@ -44,6 +46,13 @@ internal fun BuildingDetailsCard(
                     else -> "Set destination"
                 })
             }
+            if (onViewFloorPlans != null) {
+                TextButton(onClick = onViewFloorPlans) { Text("View Floor Plans") }
+            }
+            TextButton(
+                onClick = onSelectStartingPoint,
+                enabled = building.coordinates != null
+            ) { Text("Set as starting point") }
         }
     }
 }

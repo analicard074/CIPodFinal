@@ -16,6 +16,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Dp
 import com.example.cipod_final.buildings.CampusBuilding
 
 @Composable
@@ -23,7 +24,8 @@ internal fun BuildingSearchBar(
     query: String,
     results: List<CampusBuilding>,
     onQueryChange: (String) -> Unit,
-    onBuildingClick: (CampusBuilding) -> Unit
+    onBuildingClick: (CampusBuilding) -> Unit,
+    maxResultsHeight: Dp = 144.dp
 ) {
     Surface(color = MaterialTheme.colorScheme.primaryContainer) {
         Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
@@ -43,7 +45,7 @@ internal fun BuildingSearchBar(
             if (results.isEmpty()) {
                 Text("No buildings found. Try another name.", Modifier.padding(12.dp))
             } else {
-                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 144.dp)) {
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = maxResultsHeight)) {
                     items(results, key = { it.id }) { building ->
                         Column(
                             Modifier.fillMaxWidth().clickable { onBuildingClick(building) }

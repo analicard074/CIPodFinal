@@ -35,6 +35,7 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = 1
         versionName = "1.0"
+        buildConfigField("boolean", "INDOOR_EDITOR_REQUESTED", "false")
     }
     packaging {
         resources {
@@ -42,6 +43,10 @@ android {
         }
     }
     buildTypes {
+        debug {
+            val requested = providers.gradleProperty("enableIndoorEditor").map(String::toBoolean).getOrElse(false)
+            buildConfigField("boolean", "INDOOR_EDITOR_REQUESTED", requested.toString())
+        }
         release {
             isMinifyEnabled = false
             proguardFiles(
@@ -56,5 +61,6 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }

@@ -1,5 +1,8 @@
 package com.example.cipod_final.data
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.cipod_final.data.firestore.FirebaseMyPodRepository
@@ -37,7 +40,19 @@ class FirebaseEmulatorTest {
     @Test
     fun createsAccountAndRecordsOnlyItsOwnProfile() = runBlocking<Unit> {
         withTimeout(45_000) {
-            val context = InstrumentationRegistry.getInstrumentation().targetContext
+            val instrumentation = InstrumentationRegistry.getInstrumentation()
+            val context = instrumentation.targetContext
+            if (Build.VERSION.SDK_INT >= 37) {
+                instrumentation.uiAutomation.grantRuntimePermission(
+                    context.packageName,
+                    Manifest.permission.ACCESS_LOCAL_NETWORK,
+                )
+                assertEquals(
+                    PackageManager.PERMISSION_GRANTED,
+                    context.checkSelfPermission(Manifest.permission.ACCESS_LOCAL_NETWORK),
+                    "Local Firebase emulator access requires the test APK's local-network permission.",
+                )
+            }
             val app = Firebase.initialize(
                 context,
                 FirebaseOptions(

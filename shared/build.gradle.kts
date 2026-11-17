@@ -42,6 +42,8 @@ kotlin {
     
     sourceSets {
         androidMain.dependencies {
+            implementation(libs.androidx.core.ktx)
+            implementation(libs.androidx.activity.compose)
             implementation(project.dependencies.platform(libs.firebase.bom))
             runtimeOnly(libs.maplibre.compose.runtime.android)
             implementation(libs.compose.uiToolingPreview)
@@ -52,6 +54,7 @@ kotlin {
             implementation(libs.androidx.test.runner)
         }
         commonMain.dependencies {
+            implementation(libs.kotlinx.serialization.json)
             implementation(libs.firebase.auth)
             implementation(libs.firebase.firestore)
             implementation(libs.kotlinx.coroutines.core)

@@ -15,7 +15,10 @@ import com.example.cipod_final.ui.theme.CIPodTheme
 
 @Composable
 @Preview
-fun App(onLoginSuccess: () -> Unit = {}) {
+fun App(
+    indoorEditorEnabled: Boolean = false,
+    onLoginSuccess: () -> Unit = {},
+) {
     val isPreview = LocalInspectionMode.current
     val firebase = remember(isPreview) { if (isPreview) null else FirebaseRepositories.create() }
     var isLoggedIn by remember { mutableStateOf(false) }
@@ -23,6 +26,7 @@ fun App(onLoginSuccess: () -> Unit = {}) {
     CIPodTheme {
         if (isLoggedIn) {
             NaviBar(
+                indoorEditorEnabled = indoorEditorEnabled,
                 loadClassSessions = { checkNotNull(firebase).getClassSessions() },
                 loadClubs = { checkNotNull(firebase).getClubs() },
                 loadMyPod = { checkNotNull(firebase).myPod.load() },

@@ -20,9 +20,10 @@ gitliveFirebase = "2.7.0"
 googleServices = "4.5.0"
 firebaseBom = "35.0.2"
 coroutines = "1.11.0"
-serialization = "1.9.0"
+serialization = "1.11.0"
 
 [libraries]
+kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidx-testRunner" }
 firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "gitliveFirebase" }
 firebase-firestore = { module = "dev.gitlive:firebase-firestore", version.ref = "gitliveFirebase" }

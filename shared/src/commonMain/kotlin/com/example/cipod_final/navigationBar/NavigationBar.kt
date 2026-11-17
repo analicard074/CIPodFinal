@@ -28,10 +28,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.cipod_final.buildings.CampusNavigationState
 import com.example.cipod_final.data.ClassSession
 import com.example.cipod_final.data.Club
 import com.example.cipod_final.data.firestore.SavedMyPod
+import com.example.cipod_final.indoor.FloorPlanEditorViewModel
+import com.example.cipod_final.location.LocationSession
 import com.example.cipod_final.ui.map.CampusMapScreen
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
@@ -61,7 +64,6 @@ internal fun restoreMyPodClassState(values: List<String>): List<MyPodClass> {
         else -> restoreLegacyClassRecords(values)
     }
 }
-
 private fun savedStateVersion(value: String): String? {
     if (!value.startsWith(MY_POD_CLASS_STATE_MARKER_PREFIX) || !value.endsWith("__")) return null
     val version = value.removePrefix(MY_POD_CLASS_STATE_MARKER_PREFIX).removeSuffix("__")
@@ -105,13 +107,21 @@ private val LEGACY_LOCATION_PATTERN = Regex("^(.+), Floor (.+), Room (.+)$")
 @Composable
 fun NaviBar(
     modifier: Modifier = Modifier,
+    indoorEditorEnabled: Boolean = false,
     onSignOut: suspend () -> Unit = {},
     loadClassSessions: suspend () -> List<ClassSession> = { emptyList() },
     loadClubs: suspend () -> List<Club> = { emptyList() },
     loadMyPod: suspend () -> SavedMyPod = { SavedMyPod() },
     saveMyPod: suspend (SavedMyPod) -> Unit = {},
 ) {
+    val indoorModel: FloorPlanEditorViewModel = viewModel(key = "indoor-editor-$indoorEditorEnabled") {
+        FloorPlanEditorViewModel(indoorEditorEnabled)
+    }
+    val floorEditor = indoorModel.editor
     var selected by remember { mutableStateOf("MyPod") }
+    val locationScope = rememberCoroutineScope()
+    // Device coordinates stay in this memory-only session and are never saved with navigation state.
+    val locationSession = remember(locationScope) { LocationSession(locationScope) }
     // Keep expansion choices across tabs, and reset them for each login/app session.
     var classesExpanded by remember { mutableStateOf(true) }
     var clubsExpanded by remember { mutableStateOf(false) }
@@ -208,6 +218,8 @@ fun NaviBar(
             when (selected) {
                 "Directions" -> CampusMapScreen(
                     navigation = navigation,
+                    locationSession = locationSession,
+                    floorEditor = floorEditor,
                     onNavigationChange = { navigation = it }
                 )
 
@@ -241,7 +253,18 @@ fun NaviBar(
                 )
 
                 "Settings" -> SettingsScreen(
-                    onSignOut = onSignOut,
+                    onSignOut = {
+                        // Preserve the current session if Firebase sign-out fails.
+                        onSignOut()
+                        locationSession.clear()
+                        navigation = CampusNavigationState()
+                        // Clear only this composition's in-memory copy; keep Firestore data.
+                        savedSelections = SavedMyPod()
+                        accessibilityEnabled = false
+                        selected = "MyPod"
+                        classesExpanded = true
+                        clubsExpanded = false
+                    },
                     accessibilityEnabled = accessibilityEnabled,
                     onAccessibilityChange = { accessibilityEnabled = it }
                 )
