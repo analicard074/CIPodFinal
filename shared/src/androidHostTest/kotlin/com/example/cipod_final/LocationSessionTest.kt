@@ -41,7 +41,7 @@ class LocationSessionTest {
         override fun openLocationSettings() = Unit
     }
 
-    @Test fun noAccessUntilActionAndPermissionThenOnlyOneReading() = runBlocking {
+    @Test fun permittedReadingAutomaticallyBecomesStartingPoint() = runBlocking {
         val scope = CoroutineScope(coroutineContext + SupervisorJob())
         try {
             val controller = FakeController()
@@ -60,10 +60,42 @@ class LocationSessionTest {
             )))
             yield()
             assertEquals(LocationStatus.Ready, session.state.status)
-            assertNull(session.state.start)
-            session.useReading()
             assertIs<StartingPoint.Device>(session.state.start)
+            assertEquals(session.state.reading, (session.state.start as StartingPoint.Device).reading)
             assertEquals(1, controller.readingCalls)
+        } finally { scope.cancel() }
+    }
+
+    @Test fun automaticReadingDoesNotPromptForPermission() = runBlocking<Unit> {
+        val scope = CoroutineScope(coroutineContext + SupervisorJob())
+        try {
+            val controller = FakeController().also {
+                it.result.complete(LocationResult.Success(LocationReading(
+                    34.162197, -119.044662, 10.0, locationNowMillis(), true
+                )))
+            }
+            val session = LocationSession(scope)
+            session.requestLocation(controller, promptForPermission = false)
+            yield()
+            assertEquals(0, controller.permissionCalls)
+            assertEquals(1, controller.readingCalls)
+            assertIs<StartingPoint.Device>(session.state.start)
+        } finally { scope.cancel() }
+    }
+
+    @Test fun approximateReadingDoesNotAutomaticallyBecomeStartingPoint() = runBlocking {
+        val scope = CoroutineScope(coroutineContext + SupervisorJob())
+        try {
+            val controller = FakeController().also {
+                it.result.complete(LocationResult.Success(LocationReading(
+                    34.162197, -119.044662, 100.0, locationNowMillis(), false
+                )))
+            }
+            val session = LocationSession(scope)
+            session.requestLocation(controller, promptForPermission = false)
+            yield()
+            assertEquals(LocationStatus.Ready, session.state.status)
+            assertNull(session.state.start)
         } finally { scope.cancel() }
     }
 
