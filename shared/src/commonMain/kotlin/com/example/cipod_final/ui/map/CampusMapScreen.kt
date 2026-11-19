@@ -102,8 +102,7 @@ fun CampusMapScreen(
             query = navigation.query,
             results = navigation.results,
             onQueryChange = { onNavigationChange(navigation.copy(query = it)) },
-            onBuildingClick = showBuilding,
-            maxResultsHeight = 96.dp
+            onBuildingClick = showBuilding
         )
         StartingPointControls(locationSession, controller)
         navigation.destination?.let { destination ->
