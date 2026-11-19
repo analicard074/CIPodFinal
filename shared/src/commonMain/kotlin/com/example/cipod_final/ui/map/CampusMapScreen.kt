@@ -14,10 +14,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
@@ -50,22 +49,12 @@ fun CampusMapScreen(
     val focusManager = LocalFocusManager.current
     val controller = rememberLocationController()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(locationSession, controller) {
-        if (locationSession.state.requestId == 0L && locationSession.state.start == null) {
-            // Login already requested permission; read once without another automatic prompt.
-            locationSession.requestLocation(controller, promptForPermission = false)
-        }
-    }
-    DisposableEffect(locationSession, lifecycle) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_STOP) locationSession.cancelRequest()
-            if (event == Lifecycle.Event.ON_START) locationSession.refreshFreshness()
-        }
-        lifecycle.addObserver(observer)
-        locationSession.refreshFreshness()
-        onDispose {
-            lifecycle.removeObserver(observer)
-            locationSession.cancelRequest()
+    LaunchedEffect(locationSession, controller, lifecycle, indoorBuildingId) {
+        // Pause refresh when the app is hidden or an indoor floor plan is open.
+        if (indoorBuildingId == null) {
+            lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+                locationSession.refreshAutomatically(controller)
+            }
         }
     }
     // One event path for markers, search results, and the destination chip.
@@ -82,7 +71,7 @@ fun CampusMapScreen(
             expired = locationSession.state.status == LocationStatus.Stale
         )
     }
-    LaunchedEffect(locationSession.readingRevision, locationSession.state.reading) {
+    LaunchedEffect(locationSession.readingRevision) {
         locationSession.state.reading?.let { reading ->
             mapState.setCameraPosition(CameraPosition(
                 center = Position(latitude = reading.latitude, longitude = reading.longitude), zoom = 17.0

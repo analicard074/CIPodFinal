@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -27,20 +26,15 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.location.LocationController
-import com.example.cipod_final.location.LocationQuality
-import com.example.cipod_final.location.LocationQualityPolicy
 import com.example.cipod_final.location.LocationSession
 import com.example.cipod_final.location.LocationStatus
 import com.example.cipod_final.location.StartingPoint
-import com.example.cipod_final.location.locationNowMillis
-import kotlin.math.roundToInt
 
 @Composable
 internal fun StartingPointControls(session: LocationSession, controller: LocationController) {
     val state = session.state
     val focusManager = LocalFocusManager.current
     var chooseBuilding by remember { mutableStateOf(false) }
-    val quality = state.reading?.let { LocationQualityPolicy.evaluate(it, locationNowMillis()) }
     Surface(color = MaterialTheme.colorScheme.surface) {
         Column(
             Modifier
@@ -73,12 +67,7 @@ internal fun StartingPointControls(session: LocationSession, controller: Locatio
                 LocationStatus.Idle -> "Choose your destination or desired building."
                 LocationStatus.RequestingPermission -> "Waiting for foreground location permission..."
                 LocationStatus.Locating -> "Getting location..."
-                LocationStatus.Ready -> {
-                    val accuracy = state.reading?.accuracyMeters?.roundToInt()
-                    if (quality == LocationQuality.Usable) "One-time snapshot • accuracy about $accuracy m • expires after 2 minutes."
-                    else "Approximate location. Retry or choose a building."
-                }
-
+                LocationStatus.Ready -> null
                 LocationStatus.Denied -> "Location permission is off. Tap Use Location to request access."
                 LocationStatus.ServicesDisabled -> "Location services are off. Enable them in Settings, then retry, or choose a building."
                 LocationStatus.Unavailable -> "No location fix available. Try outdoors, retry, or choose a building."
@@ -86,15 +75,12 @@ internal fun StartingPointControls(session: LocationSession, controller: Locatio
                 LocationStatus.Cancelled -> "Location request cancelled. Retry or choose a building."
                 LocationStatus.Stale -> "This location snapshot has expired. Retry or choose a building."
             }
-            Text(
-                message, style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier
-                    .semantics { liveRegion = LiveRegionMode.Polite }
-            )
-            if (state.status == LocationStatus.Ready && state.start !is StartingPoint.Device) {
-                Button(onClick = session::useReading, enabled = quality == LocationQuality.Usable) {
-                    Text("Use location as starting point")
-                }
+            if (message != null) {
+                Text(
+                    message, style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier
+                        .semantics { liveRegion = LiveRegionMode.Polite }
+                )
             }
             state.start?.let { start ->
                 Row(
