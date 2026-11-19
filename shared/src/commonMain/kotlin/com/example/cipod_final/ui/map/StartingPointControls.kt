@@ -8,16 +8,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -34,7 +29,6 @@ import com.example.cipod_final.location.StartingPoint
 internal fun StartingPointControls(session: LocationSession, controller: LocationController) {
     val state = session.state
     val focusManager = LocalFocusManager.current
-    var chooseBuilding by remember { mutableStateOf(false) }
     Surface(color = MaterialTheme.colorScheme.surface) {
         Column(
             Modifier
@@ -56,11 +50,6 @@ internal fun StartingPointControls(session: LocationSession, controller: Locatio
                         }
                     )
                 }
-                TextButton(onClick = {
-                    focusManager.clearFocus()
-                    session.cancelRequest()
-                    chooseBuilding = true
-                }) { Text("Choose a building") }
                 if (state.busy) TextButton(onClick = session::cancelRequest) { Text("Cancel") }
             }
             val message = when (state.status) {
@@ -95,23 +84,5 @@ internal fun StartingPointControls(session: LocationSession, controller: Locatio
                 }
             }
         }
-    }
-    if (chooseBuilding) {
-        AlertDialog(
-            onDismissRequest = { chooseBuilding = false },
-            title = { Text("Choose a starting building") },
-            text = {
-                Column {
-                    Text("Only buildings with verified coordinates are available.")
-                    CampusBuildings.all.filter { it.coordinates != null }.forEach { building ->
-                        TextButton(onClick = {
-                            session.chooseBuilding(building.id)
-                            chooseBuilding = false
-                        }) { Text(building.name) }
-                    }
-                }
-            },
-            confirmButton = { TextButton(onClick = { chooseBuilding = false }) { Text("Close") } }
-        )
     }
 }
