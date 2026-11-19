@@ -42,14 +42,25 @@ internal fun StartingPointControls(session: LocationSession, controller: Locatio
     var chooseBuilding by remember { mutableStateOf(false) }
     val quality = state.reading?.let { LocationQualityPolicy.evaluate(it, locationNowMillis()) }
     Surface(color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 160.dp).verticalScroll(rememberScrollState())
-            .padding(horizontal = 12.dp)) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(max = 160.dp)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 12.dp)
+        ) {
             Row(Modifier.horizontalScroll(rememberScrollState())) {
                 TextButton(enabled = !state.busy, onClick = {
                     focusManager.clearFocus()
                     session.requestLocation(controller)
                 }) {
-                    Text(if (state.status == LocationStatus.Idle) "Use My Location" else "Retry location")
+                    Text(
+                        when (state.status) {
+                            LocationStatus.Denied -> "Use Location"
+                            LocationStatus.Idle -> "Use My Location"
+                            else -> "Refresh location"
+                        }
+                    )
                 }
                 TextButton(onClick = {
                     focusManager.clearFocus()
@@ -59,38 +70,37 @@ internal fun StartingPointControls(session: LocationSession, controller: Locatio
                 if (state.busy) TextButton(onClick = session::cancelRequest) { Text("Cancel") }
             }
             val message = when (state.status) {
-                LocationStatus.Idle -> "Choose a starting point. Your destination stays separate."
-                LocationStatus.RequestingPermission -> "Waiting for foreground location permission…"
-                LocationStatus.Locating -> "Getting one location reading…"
+                LocationStatus.Idle -> "Choose your destination or desired building."
+                LocationStatus.RequestingPermission -> "Waiting for foreground location permission..."
+                LocationStatus.Locating -> "Getting location..."
                 LocationStatus.Ready -> {
                     val accuracy = state.reading?.accuracyMeters?.roundToInt()
-                    if (quality == LocationQuality.Usable) "One-time snapshot • accuracy about $accuracy m • expires after 30 seconds."
-                    else "Approximate location (about $accuracy m). Retry or choose a building."
+                    if (quality == LocationQuality.Usable) "One-time snapshot • accuracy about $accuracy m • expires after 2 minutes."
+                    else "Approximate location. Retry or choose a building."
                 }
-                LocationStatus.Denied -> "Location permission denied. Choose a building or enable access in app settings."
+
+                LocationStatus.Denied -> "Location permission is off. Tap Use Location to request access."
                 LocationStatus.ServicesDisabled -> "Location services are off. Enable them in Settings, then retry, or choose a building."
                 LocationStatus.Unavailable -> "No location fix available. Try outdoors, retry, or choose a building."
                 LocationStatus.TimedOut -> "Location request timed out. Retry or choose a building."
                 LocationStatus.Cancelled -> "Location request cancelled. Retry or choose a building."
                 LocationStatus.Stale -> "This location snapshot has expired. Retry or choose a building."
             }
-            Text(message, style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite })
+            Text(
+                message, style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier
+                    .semantics { liveRegion = LiveRegionMode.Polite }
+            )
             if (state.status == LocationStatus.Ready && state.start !is StartingPoint.Device) {
                 Button(onClick = session::useReading, enabled = quality == LocationQuality.Usable) {
                     Text("Use location as starting point")
                 }
             }
-            if (state.status == LocationStatus.Denied || state.status == LocationStatus.ServicesDisabled ||
-                quality == LocationQuality.Approximate) {
-                TextButton(onClick = {
-                    session.cancelRequest()
-                    if (state.status == LocationStatus.ServicesDisabled) controller.openLocationSettings()
-                    else controller.openAppSettings()
-                }) { Text("Open Settings") }
-            }
             state.start?.let { start ->
-                Row(Modifier.horizontalScroll(rememberScrollState())) {
+                Row(
+                    Modifier
+                        .horizontalScroll(rememberScrollState())
+                ) {
                     val name = when (start) {
                         is StartingPoint.Building -> CampusBuildings.find(start.buildingId)?.name.orEmpty()
                         is StartingPoint.Device -> "My location (snapshot)"

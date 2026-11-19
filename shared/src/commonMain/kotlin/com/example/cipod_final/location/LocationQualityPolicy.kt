@@ -2,7 +2,9 @@ package com.example.cipod_final.location
 
 object LocationQualityPolicy {
     const val targetAccuracyMeters = 25.0
-    const val maxAgeMillis = 30_000L
+
+    // Idle time is 2 minutes when user is on Directions screen
+    const val maxAgeMillis = 120_000L
     const val requestTimeoutMillis = 20_000L
 
     fun evaluate(reading: LocationReading, nowMillis: Long): LocationQuality {
