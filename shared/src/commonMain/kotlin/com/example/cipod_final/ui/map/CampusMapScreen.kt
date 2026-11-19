@@ -50,6 +50,12 @@ fun CampusMapScreen(
     val focusManager = LocalFocusManager.current
     val controller = rememberLocationController()
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    LaunchedEffect(locationSession, controller) {
+        if (locationSession.state.requestId == 0L && locationSession.state.start == null) {
+            // Login already requested permission; read once without another automatic prompt.
+            locationSession.requestLocation(controller, promptForPermission = false)
+        }
+    }
     DisposableEffect(locationSession, lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_STOP) locationSession.cancelRequest()

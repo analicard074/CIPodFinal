@@ -229,7 +229,8 @@ above still apply.
 
 Milestone 2 adds building discovery and destination selection. Walking routes,
 walking-time estimates remain outside this implementation. Current location and
-indoor floor plans are covered by the later features described below. No commit or push is needed to test these local changes.
+indoor floor plans are covered by the later features described below. No commit or push is needed to
+test these local changes.
 
 ## On-demand starting location
 
@@ -244,7 +245,7 @@ not passed independent verification.
 - Demo login can request foreground permission, but never retrieves coordinates.
   Android persists only the `permissions/locationRequested` boolean to suppress
   repeated automatic prompts, including after denial, revocation, or one-time
-  permission expiry. This flag does not gate Use My Location / Retry location.
+  permission expiry. This flag does not gate Use My Location / Refresh location.
   Those actions check current OS authorization and request it again when supported;
   otherwise the denied state offers Open Settings and manual building selection.
 - iOS prompts after login only while authorization is undetermined. Allow Once can
@@ -407,7 +408,6 @@ References:
 [Core Location](https://developer.apple.com/documentation/corelocation/cllocationmanager),
 [Apple one-time request](https://developer.apple.com/documentation/corelocation/cllocationmanager/requestlocation()),
 [Android emulator controls](https://developer.android.com/studio/run/emulator-extended-controls).
-
 
 ## Indoor viewer
 

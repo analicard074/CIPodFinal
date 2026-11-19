@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.LocationManager
 import android.net.Uri
+import android.os.Build
 import android.os.CancellationSignal
 import android.os.SystemClock
 import android.provider.Settings
@@ -81,6 +82,8 @@ private class AndroidLocationController(private val context: Context, private va
         }
         val precise = granted(Manifest.permission.ACCESS_FINE_LOCATION)
         val provider = when {
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.S &&
+                manager.isProviderEnabled(LocationManager.FUSED_PROVIDER) -> LocationManager.FUSED_PROVIDER
             precise && manager.isProviderEnabled(LocationManager.GPS_PROVIDER) -> LocationManager.GPS_PROVIDER
             manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) -> LocationManager.NETWORK_PROVIDER
             else -> return LocationResult.Failure(LocationStatus.Unavailable)

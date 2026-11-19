@@ -27,7 +27,7 @@ class LocationSession(
     private var request: Job? = null
     private var expiry: Job? = null
 
-    fun requestLocation(controller: LocationController) {
+    fun requestLocation(controller: LocationController, promptForPermission: Boolean = true) {
         cancelRequest()
         expiry?.cancel()
         state = state.beginRequest()
@@ -38,7 +38,7 @@ class LocationSession(
                     receive(id, LocationResult.Failure(LocationStatus.ServicesDisabled))
                     return@launch
                 }
-                if (!controller.requestPermission()) {
+                if (promptForPermission && !controller.requestPermission()) {
                     receive(id, LocationResult.Failure(LocationStatus.Denied))
                     return@launch
                 }
@@ -65,6 +65,7 @@ class LocationSession(
         if (result is LocationResult.Success && state.reading != null) readingRevision++
         val snapshot = state.reading ?: return
         if (state.status != LocationStatus.Ready) return
+        state = state.useReading(locationNowMillis())
         expiry?.cancel()
         expiry = scope.launch {
             delay((snapshot.capturedAtMillis + LocationQualityPolicy.maxAgeMillis - locationNowMillis())

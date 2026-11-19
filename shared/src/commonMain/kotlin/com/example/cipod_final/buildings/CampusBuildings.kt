@@ -7,9 +7,9 @@ object CampusBuildings {
             id = "gateway-hall",
             name = "Gateway Hall",
             description = "Welcome Center, classrooms, study spaces, and technology labs.",
-            coordinates = null,
-            universitySource = "https://maps.csuci.edu/?id=502#!m/803263",
-            locationNote = "Location awaiting verification. Map and destination selection are unavailable."
+            coordinates = BuildingCoordinates(34.164838, -119.045057),
+            universitySource = "https://maps.csuci.edu/?id=502#!m/1067463",
+            geographicSource = "https://www.openstreetmap.org/#map=19/34.164626/-119.045022&layers=N"
         ),
         CampusBuilding(
             id = "sierra-hall",
