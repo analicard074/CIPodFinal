@@ -145,6 +145,7 @@ fun CampusMapScreen(
                 modifier = Modifier
                     .fillMaxSize(),
                 state = mapState,
+                cameraConstraints = CampusMapConfig.cameraConstraints,
             ) {
                 // Keep source attribution and map controls inside the unobscured map viewport.
                 Box(
