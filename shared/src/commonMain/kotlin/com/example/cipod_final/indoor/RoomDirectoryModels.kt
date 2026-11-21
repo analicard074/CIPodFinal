@@ -7,5 +7,7 @@ data class DirectoryRoom(
     val number: String,
     val publishedType: String,
     val sourceUrl: String,
-    val reviewedOn: String
+    val reviewedOn: String,
+    val category: RoomCategory? = null
+
 )
