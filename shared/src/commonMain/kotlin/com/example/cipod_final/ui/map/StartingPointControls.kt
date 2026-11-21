@@ -1,6 +1,7 @@
 package com.example.cipod_final.ui.map
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,16 +9,21 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.location.LocationController
@@ -29,25 +35,41 @@ import com.example.cipod_final.location.StartingPoint
 internal fun StartingPointControls(session: LocationSession, controller: LocationController) {
     val state = session.state
     val focusManager = LocalFocusManager.current
-    Surface(color = MaterialTheme.colorScheme.surface) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+    ) {
         Column(
-            Modifier
+            modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(max = 160.dp)
+                .heightIn(max = 200.dp)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp)
+                .padding(horizontal = 16.dp, vertical = 4.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            Row(Modifier.horizontalScroll(rememberScrollState())) {
-                TextButton(enabled = !state.busy, onClick = {
-                    focusManager.clearFocus()
-                    session.requestLocation(controller)
-                }) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.Center,
+            ) {
+                ElevatedButton(
+                    elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 6.dp),
+                    enabled = !state.busy,
+                    onClick = {
+                        focusManager.clearFocus()
+                        session.requestLocation(controller)
+                    },
+                ) {
                     Text(
                         when (state.status) {
                             LocationStatus.Denied -> "Use Location"
                             LocationStatus.Idle -> "Use My Location"
                             else -> "Refresh location"
-                        }
+                        },
+                        style = MaterialTheme.typography.labelMedium,
                     )
                 }
                 if (state.busy) TextButton(onClick = session::cancelRequest) { Text("Cancel") }
@@ -67,14 +89,20 @@ internal fun StartingPointControls(session: LocationSession, controller: Locatio
             if (message != null) {
                 Text(
                     message, style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center,
                     modifier = Modifier
-                        .semantics { liveRegion = LiveRegionMode.Polite }
+                        .fillMaxWidth()
+                        .padding(top = 2.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
                 )
             }
+
             state.start?.let { start ->
                 Row(
-                    Modifier
-                        .horizontalScroll(rememberScrollState())
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.Center,
                 ) {
                     val name = when (start) {
                         is StartingPoint.Building -> CampusBuildings.find(start.buildingId)?.name.orEmpty()
