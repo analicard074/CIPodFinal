@@ -78,7 +78,16 @@ internal fun StartingPointControls(session: LocationSession, controller: Locatio
                 LocationStatus.Idle -> "Choose your destination or desired building."
                 LocationStatus.RequestingPermission -> "Waiting for foreground location permission..."
                 LocationStatus.Locating -> "Getting location..."
-                LocationStatus.Ready -> null
+                LocationStatus.Ready -> {
+                    val currentLocation = state.reading
+                    if (currentLocation != null &&
+                        CampusMapConfig.isOutsideCampus(currentLocation.latitude, currentLocation.longitude)
+                    ) {
+                        "You are outside of campus."
+                    } else {
+                        null
+                    }
+                }
                 LocationStatus.Denied -> "Location permission is off. Tap Use Location to request access."
                 LocationStatus.ServicesDisabled -> "Location services are off. Enable them in Settings, then retry, or choose a building."
                 LocationStatus.Unavailable -> "No location fix available. Try outdoors, retry, or choose a building."

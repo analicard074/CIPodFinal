@@ -38,6 +38,7 @@ import com.example.cipod_final.location.LocationStatus
 import com.example.cipod_final.location.StartingPoint
 import com.example.cipod_final.location.rememberLocationController
 import com.example.cipod_final.ui.indoor.IndoorFloorViewer
+import org.maplibre.compose.camera.CameraFit
 import org.maplibre.compose.camera.CameraPosition
 import org.maplibre.compose.map.MaplibreMap
 import org.maplibre.compose.overlay.AttributionDefaults
@@ -47,6 +48,7 @@ import org.maplibre.compose.overlay.DisappearingScaleBar
 import org.maplibre.compose.overlay.MaplibreLogo
 import org.maplibre.compose.overlay.ZoomButtons
 import org.maplibre.compose.overlay.attributions
+import org.maplibre.compose.util.DpPadding
 import org.maplibre.spatialk.geojson.Position
 
 @Composable
@@ -84,14 +86,40 @@ fun CampusMapScreen(
             expired = locationSession.state.status == LocationStatus.Stale
         )
     }
-    LaunchedEffect(locationSession.readingRevision) {
-        locationSession.state.reading?.let { reading ->
-            mapState.setCameraPosition(
-                CameraPosition(
-                    center = Position(latitude = reading.latitude, longitude = reading.longitude),
-                    zoom = 17.0
+    val currentLocation = locationSession.state.reading
+    val isOutsideCampus = if (currentLocation != null) {
+        CampusMapConfig.isOutsideCampus(currentLocation.latitude, currentLocation.longitude)
+    } else {
+        false
+    }
+
+    // Update the view after a location request or when the user enters or leaves campus.
+    LaunchedEffect(locationSession.readingRevision, isOutsideCampus) {
+        if (currentLocation != null) {
+            if (isOutsideCampus) {
+                // Show all three buildings instead of moving to the user's off-campus location
+                mapState.animateCameraToBounds(
+                    CampusMapConfig.buildingBounds,
+                    fit = CameraFit(
+                        fitPadding = DpPadding(
+                            left = 32.dp,
+                            top = 128.dp,
+                            right = 32.dp,
+                            bottom = 32.dp
+                        )
+                    )
                 )
-            )
+            } else {
+                mapState.setCameraPosition(
+                    CameraPosition(
+                        center = Position(
+                            latitude = currentLocation.latitude,
+                            longitude = currentLocation.longitude
+                        ),
+                        zoom = 17.0
+                    )
+                )
+            }
         }
     }
     LaunchedEffect(locationSession.state.start) {
