@@ -15,7 +15,7 @@ internal object CampusMapConfig {
     )
     val cameraConstraints = CameraConstraints {
         boundingBox = campusBounds
-        minZoom = 15.0
+        minZoom = 14.5
     }
 
     // A location is outside campus if it passes any of the four boundaries
