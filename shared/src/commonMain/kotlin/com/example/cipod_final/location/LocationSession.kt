@@ -7,94 +7,195 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 
 fun locationNowMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
-/** Owns cancellable work and volatile UI state, without collecting a location stream. */
+// Manages location requests and the selected starting point
 class LocationSession(
     private val scope: CoroutineScope,
     private val timeoutMillis: Long = LocationQualityPolicy.requestTimeoutMillis
 ) {
     var state by mutableStateOf(NavigationStartState())
         private set
-    // A successful retry can return the same cached snapshot; still recenter once for that action.
+
+    // Incrementing this tells the map to center on the location again
     var readingRevision by mutableStateOf(0L)
         private set
-    private var request: Job? = null
-    private var expiry: Job? = null
 
-    fun requestLocation(controller: LocationController, promptForPermission: Boolean = true) {
+    private var locationRequestJob: Job? = null
+    private var locationExpiryJob: Job? = null
+    private var automaticRefreshEnabled = true
+
+    suspend fun refreshAutomatically(controller: LocationController) {
+        automaticRefreshEnabled = state.start !is StartingPoint.Building
+        var isFirstAttempt = true
+        state = state.expire(locationNowMillis())
+        try {
+            while (currentCoroutineContext().isActive) {
+                val requestInProgress = locationRequestJob?.isActive == true || state.busy
+                val buildingSelected = state.start is StartingPoint.Building
+                val canTryPermission = isFirstAttempt || state.status != LocationStatus.Denied
+
+                if (automaticRefreshEnabled && !requestInProgress && !buildingSelected && canTryPermission) {
+                    requestLocation(controller, promptForPermission = false, automatic = true)
+                    locationRequestJob?.join()
+                }
+                isFirstAttempt = false
+                delay(3.seconds)
+            }
+        } finally {
+            cancelRequest()
+        }
+    }
+
+    fun requestLocation(
+        controller: LocationController,
+        promptForPermission: Boolean = true,
+        automatic: Boolean = false
+    ) {
         cancelRequest()
-        expiry?.cancel()
-        state = state.beginRequest()
-        val id = state.requestId
-        request = scope.launch {
+        automaticRefreshEnabled = true
+        val previousState = state.expire(locationNowMillis())
+        val isBackgroundRefresh =
+            automatic && previousState.reading != null && previousState.status != LocationStatus.Stale
+        if (!isBackgroundRefresh) {
+            locationExpiryJob?.cancel()
+        }
+        // Keep the current location visible during automatic updates
+        state = if (isBackgroundRefresh) {
+            previousState.copy(requestId = previousState.requestId + 1)
+        } else {
+            state.beginRequest()
+        }
+        val requestId = state.requestId
+        fun handleResult(result: LocationResult) {
+            applyLocationResult(
+                requestId,
+                result,
+                moveCamera = !automatic,
+                isBackgroundRefresh = isBackgroundRefresh
+            )
+        }
+        locationRequestJob = scope.launch {
             try {
                 if (!controller.locationServicesEnabled()) {
-                    receive(id, LocationResult.Failure(LocationStatus.ServicesDisabled))
+                    handleResult(LocationResult.Failure(LocationStatus.ServicesDisabled))
                     return@launch
                 }
                 if (promptForPermission && !controller.requestPermission()) {
-                    receive(id, LocationResult.Failure(LocationStatus.Denied))
+                    handleResult(LocationResult.Failure(LocationStatus.Denied))
                     return@launch
                 }
-                if (state.requestId != id) return@launch
-                state = state.copy(status = LocationStatus.Locating)
+                if (state.requestId != requestId) {
+                    return@launch
+                }
+                if (!isBackgroundRefresh) {
+                    state = state.copy(status = LocationStatus.Locating)
+                }
                 val result = withTimeout(timeoutMillis) {
                     controller.readCurrentLocation()
                 }
-                receive(id, result)
+                handleResult(result)
             } catch (_: TimeoutCancellationException) {
-                receive(id, LocationResult.Failure(LocationStatus.TimedOut))
+                handleResult(LocationResult.Failure(LocationStatus.TimedOut))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                // Do not log OS errors that could contain sensitive location payloads.
-                receive(id, LocationResult.Failure(LocationStatus.Unavailable))
+                // Avoid logging errors that could contain location data.
+                handleResult(LocationResult.Failure(LocationStatus.Unavailable))
             }
         }
     }
 
-    private fun receive(id: Long, result: LocationResult) {
-        if (state.requestId != id || !state.busy) return
-        state = state.receive(id, result, locationNowMillis())
-        if (result is LocationResult.Success && state.reading != null) readingRevision++
-        val snapshot = state.reading ?: return
-        if (state.status != LocationStatus.Ready) return
-        state = state.useReading(locationNowMillis())
-        expiry?.cancel()
-        expiry = scope.launch {
-            delay((snapshot.capturedAtMillis + LocationQualityPolicy.maxAgeMillis - locationNowMillis())
-                .coerceAtLeast(1L))
-            if (state.reading == snapshot) state = state.expire(locationNowMillis())
+    private fun applyLocationResult(
+        requestId: Long,
+        result: LocationResult,
+        moveCamera: Boolean,
+        isBackgroundRefresh: Boolean
+    ) {
+        if (state.requestId != requestId) {
+            return
+        }
+        if (!isBackgroundRefresh && !state.busy) {
+            return
+        }
+        val updatedState =
+            state.copy(status = LocationStatus.Locating)
+                .receive(requestId, result, locationNowMillis())
+        val hasTemporaryFailure = when (updatedState.status) {
+            LocationStatus.TimedOut, LocationStatus.Unavailable, LocationStatus.Stale -> true
+            else -> false
+        }
+        if (isBackgroundRefresh && hasTemporaryFailure) {
+            state = state.expire(locationNowMillis())
+            scheduleExpiry()
+            return
+        }
+        state = updatedState
+        if (result is LocationResult.Success) {
+            // Center once automatically; later automatic readings only move the location marker.
+            val shouldCenterMap = moveCamera || readingRevision == 0L
+            if (state.reading != null && shouldCenterMap) {
+                readingRevision++
+            }
+            if (state.start is StartingPoint.Device) {
+                state = state.copy(start = null)
+            }
+            state = state.useReading(locationNowMillis())
+        }
+        state = state.expire(locationNowMillis())
+        scheduleExpiry()
+    }
+
+    private fun scheduleExpiry() {
+        locationExpiryJob?.cancel()
+        val reading = state.reading ?: return
+        if (state.status == LocationStatus.Stale) {
+            return
+        }
+
+        locationExpiryJob = scope.launch {
+            val expiresAtMillis = reading.capturedAtMillis + LocationQualityPolicy.maxAgeMillis
+            val remainingMillis = expiresAtMillis - locationNowMillis()
+            delay(remainingMillis.coerceAtLeast(1L))
+            if (state.reading == reading) {
+                state = state.expire(locationNowMillis())
+            }
         }
     }
 
-    fun useReading() { state = state.useReading(locationNowMillis()) }
+    fun useReading() {
+        state = state.useReading(locationNowMillis())
+    }
 
     fun chooseBuilding(id: String) {
-        val selected = state.chooseBuilding(id)
-        if (selected == state) return
+        val selectedState = state.chooseBuilding(id)
+        if (selectedState == state) {
+            return
+        }
         cancelRequest()
-        expiry?.cancel()
-        state = selected
+        locationExpiryJob?.cancel()
+        state = selectedState
     }
 
     fun clear() {
         cancelRequest()
-        expiry?.cancel()
+        locationExpiryJob?.cancel()
         state = state.clear()
     }
 
     fun cancelRequest() {
+        automaticRefreshEnabled = false
         state = state.cancel()
-        request?.cancel()
-        request = null
+        locationRequestJob?.cancel()
+        locationRequestJob = null
+        scheduleExpiry()
     }
-
-    fun refreshFreshness() { state = state.expire(locationNowMillis()) }
 }

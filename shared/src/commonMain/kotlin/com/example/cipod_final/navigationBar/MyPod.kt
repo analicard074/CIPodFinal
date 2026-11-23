@@ -25,7 +25,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -91,17 +90,6 @@ fun MyPodScreen(
     onClubsChange: (List<MyPodClub>) -> Unit,
     loadClubs: suspend () -> List<Club>,
 ) {
-    var search by rememberSaveable { mutableStateOf("") }
-    var picked by rememberSaveable { mutableStateOf<String?>(null) }
-
-    // list of buildings (add more later)
-    val buildings = listOf("Sierra Hall", "Gateway Hall")
-
-    // check which buildings match the search
-    val results = buildings.filter { building ->
-        building.contains(search.trim(), ignoreCase = true)
-    }
-
     Column(modifier = modifier.fillMaxSize()) {
         Box(
             modifier = Modifier
@@ -155,50 +143,6 @@ fun MyPodScreen(
                     .verticalScroll(rememberScrollState())
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.94f))
             ) {
-                // the search box
-                OutlinedTextField(
-                    value = search,
-                    onValueChange = { newText ->
-                        search = newText
-                        picked = null
-                    },
-                    label = { Text("Search") },
-                    placeholder = { Text("Example: Sierra Hall") },
-                    singleLine = true,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    trailingIcon = {
-                        if (search.isNotEmpty()) {
-                            IconButton(onClick = {
-                                search = ""
-                                picked = null
-                            }) {
-                                Text("x")
-                            }
-                        }
-                    }
-                )
-
-                // if user picked a building, display it
-                if (picked != null) {
-                    Text("$picked selected.", Modifier.padding(16.dp))
-                } else if (search.isNotBlank()) {
-                    // lists matches
-                    if (results.isEmpty()) {
-                        Text("Not found.", Modifier.padding(16.dp))
-                    } else {
-                        for (building in results) {
-                            TextButton(onClick = {
-                                search = building
-                                picked = building
-                            }) {
-                                Text(building)
-                            }
-                        }
-                    }
-                }
-
                 ClassesSection(
                     expanded = classesExpanded,
                     onExpandedChange = onClassesExpandedChange,

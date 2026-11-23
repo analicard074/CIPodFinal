@@ -8,8 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,11 +27,22 @@ internal fun BuildingDetailsCard(
     onViewFloorPlans: (() -> Unit)? = null,
     onClose: () -> Unit
 ) {
-    Surface(color = MaterialTheme.colorScheme.surface) {
-        Column(Modifier.fillMaxWidth().heightIn(max = 200.dp)
-            .verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp)) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().heightIn(max = 200.dp)
+                .verticalScroll(rememberScrollState()).padding(16.dp)
+        ) {
             Row {
-                Text(building.name, Modifier.weight(1f), style = MaterialTheme.typography.titleLarge)
+                Text(
+                    building.name,
+                    Modifier.weight(1f),
+                    style = MaterialTheme.typography.titleLarge
+                )
                 TextButton(onClick = onClose) { Text("Close") }
             }
             Text(building.description, style = MaterialTheme.typography.bodyMedium)
@@ -40,11 +52,13 @@ internal fun BuildingDetailsCard(
                 enabled = building.coordinates != null && destination?.id != building.id,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(when {
-                    destination?.id == building.id -> "Current destination"
-                    destination != null -> "Replace destination"
-                    else -> "Set destination"
-                })
+                Text(
+                    when {
+                        destination?.id == building.id -> "Current destination"
+                        destination != null -> "Replace destination"
+                        else -> "Set destination"
+                    }
+                )
             }
             if (onViewFloorPlans != null) {
                 TextButton(onClick = onViewFloorPlans) { Text("View Floor Plans") }

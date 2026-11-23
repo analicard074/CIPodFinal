@@ -68,8 +68,7 @@ internal fun SwipeablePodCard(
                         }
                     )
                 },
-            colors = CardDefaults.cardColors(containerColor = containerColor),
-            elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+            colors = CardDefaults.cardColors(containerColor = containerColor)
         ) {
             content()
         }
