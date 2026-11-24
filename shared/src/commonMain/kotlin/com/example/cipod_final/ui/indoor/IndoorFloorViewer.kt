@@ -41,10 +41,18 @@ import com.example.cipod_final.indoor.RoomHighlightRegistry
 
 /** A full-screen modal preserves the outdoor map composition and its memory-only camera. */
 @Composable
-internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState, onBack: () -> Unit) {
+internal fun IndoorFloorViewer(
+    buildingId: String,
+    editor: FloorPlanEditorState,
+    initialRoomId: String?,
+    initialFloorPlanId: String?,
+    onRoomSelectionChange: (String?, String?) -> Unit,
+    onBack: () -> Unit
+) {
     val plans = FloorPlanCatalog.forBuilding(buildingId)
     if (plans.isEmpty()) return
-    var selectedId by remember(buildingId) { mutableStateOf(plans.first().id) }
+    val initialPlan = plans.firstOrNull { it.id == initialFloorPlanId } ?: plans.first()
+    var selectedId by remember(buildingId, initialFloorPlanId) { mutableStateOf(initialPlan.id) }
     val plan = plans.first { it.id == selectedId }
     var selectedMarkerId by remember(plan.id) { mutableStateOf<String?>(null) }
     var pendingType by remember(plan.id) { mutableStateOf<RoomMarkerType?>(null) }
@@ -53,7 +61,9 @@ internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState,
     var showMarkers by remember { mutableStateOf(false) }
     var exportJson by remember { mutableStateOf<String?>(null) }
     var showDirectory by remember(buildingId) { mutableStateOf(false) }
-    var directory by remember(buildingId) { mutableStateOf(RoomDirectoryState(buildingId)) }
+    var directory by remember(buildingId) {
+        mutableStateOf(RoomDirectoryState(buildingId, selectedRoomId = initialRoomId))
+    }
     val markers = editor.markers(plan)
     val selected = markers.firstOrNull { it.id == selectedMarkerId }
     val exit = { editor.enableEditing(false); onBack() }
@@ -210,6 +220,7 @@ internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState,
                     directory = updatedState
 
                     val selectedRoom = updatedState.selectedRoom
+                    onRoomSelectionChange(selectedRoom?.id, selectedRoom?.floorPlanId)
                     val targetFloorId = selectedRoom?.floorPlanId
 
                     if (targetFloorId != null &&

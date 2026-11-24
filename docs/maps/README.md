@@ -416,3 +416,53 @@ viewer currently contains fictional demonstration layouts only, with a separatel
 enabled developer marker editor. No real floor counts or floor plans are asserted.
 See [indoor viewer and editor](../indoor/README.md) for developer flags, JSON export,
 and adding reviewed real images. Outdoor map/location behavior remains separate.
+
+## Campus-to-classroom routing status
+
+The Directions UI can retain a selected Broome room and floor-plan ID while the student returns
+to the outdoor map. Reopening the indoor viewer restores that room, floor, and existing room
+highlight. Classroom 2330 is the initial destination example. The current destination state does
+not serialize GPS coordinates.
+
+The route planner accepts a connected pedestrian graph plus an explicitly surveyed entrance
+node. It checks the current location through the existing precise-permission, accuracy, and
+two-minute freshness policy; checks an audited coverage polygon; then snaps to a walkway edge
+within 20 meters and uses Dijkstra to find a connected path. MapLibre Compose 0.20.0 draws available routes as an inline GeoJSON
+LineString. No straight-line fallback is used.
+
+**A real outdoor route cannot currently be displayed.** A read-only extract from the OSM API
+(`bbox=-119.047,34.161,-119.039,34.167`, reviewed 2026-11-23) contains 173 outdoor `footway`/
+`path` ways. By shared OSM node IDs, 168 ways form one connected component; four smaller
+components contain the remaining five ways. The largest component passes within about 23 m of
+the Gateway Hall map marker and 16 m of the Broome Library map marker. These are distances to
+building/map points, not evidence that either point is a usable route endpoint. Several mapped
+footways also meet or touch the Broome building outline, but the library outline has no entrance
+tag, and the extract contains no tagged entrance at the library footprint. A path touching a
+building outline does not establish a door or a pedestrian connection through the wall.
+
+CSUCI's event-space page describes the Broome Library Plaza as situated at the library entrance.
+That supports the existence of an entrance plaza, but does not identify a particular public door,
+geographic door coordinate, or which OSM footway connects to it. CSUCI's campus-map help also
+documents pedestrian accessibility information, but does not supply route geometry that can be
+used to resolve this connection. Therefore no entrance node or connector has been selected, and
+the production graph remains deliberately empty. The app continues to report “Route unavailable”;
+no straight-line or guessed connector is used.
+
+The OSM extract is © OpenStreetMap contributors and is available under the Open Database License
+(ODbL). It is an audit input only; no OSM path geometry has been copied into the app. Sources:
+[OSM API map extract for the reviewed area](https://api.openstreetmap.org/api/0.6/map?bbox=-119.047,34.161,-119.039,34.167),
+[OSM attribution and ODbL](https://www.openstreetmap.org/copyright), [CSUCI Broome Library Plaza
+description](https://www.csuci.edu/office-departments/university-events/locations/athletic-outdoor-spaces.html),
+and [CSUCI campus-map help](https://www.csuci.edu/office-departments/its/help/campus-map-help.html).
+
+CSUCI's campus-map help says its map marks ADA pedestrian routes and power-assisted door entries.
+That information has not been transcribed into this app. When the existing accessibility
+preference is on, a route is returned only if every selected edge and both route endpoints are
+explicitly verified step-free. The current result is “Accessibility has not been verified.”
+
+Before enabling real routes, verify on site or from an authoritative, current exterior/site plan:
+(1) which Broome door is a public entrance for students, (2) its WGS84 coordinate, and (3) the
+continuous pedestrian connection from that door/plaza to a specific node on the mapped OSM path.
+Then review and include the connected OSM footway/path graph with ODbL attribution and an explicit
+coverage boundary. Record step-free evidence separately for every edge and endpoint intended for
+accessible routing; until then, accessibility remains unverified.
