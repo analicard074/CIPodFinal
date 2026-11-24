@@ -14,6 +14,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.example.cipod_final.buildings.CampusBuilding
@@ -27,6 +31,7 @@ internal fun BuildingDetailsCard(
     onViewFloorPlans: (() -> Unit)? = null,
     onClose: () -> Unit
 ) {
+    var detailsExpanded by remember(building.id) { mutableStateOf(false) }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -45,8 +50,13 @@ internal fun BuildingDetailsCard(
                 )
                 TextButton(onClick = onClose) { Text("Close") }
             }
-            Text(building.description, style = MaterialTheme.typography.bodyMedium)
-            Text(building.locationNote, style = MaterialTheme.typography.bodySmall)
+            TextButton(onClick = { detailsExpanded = !detailsExpanded }) {
+                Text(if (detailsExpanded) "Hide building details" else "Show building details")
+            }
+            if (detailsExpanded) {
+                Text(building.description, style = MaterialTheme.typography.bodyMedium)
+                Text(building.locationNote, style = MaterialTheme.typography.bodySmall)
+            }
             Button(
                 onClick = onSelectDestination,
                 enabled = building.coordinates != null && destination?.id != building.id,

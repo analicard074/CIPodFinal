@@ -7,6 +7,8 @@ import com.example.cipod_final.routing.PedestrianRoutePlanner
 import com.example.cipod_final.routing.PedestrianRouteResult
 import com.example.cipod_final.routing.StepFreeStatus
 import com.example.cipod_final.ui.map.routeGeoJson
+import com.example.cipod_final.ui.map.routeBounds
+import com.example.cipod_final.ui.map.destinationGeoJson
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
@@ -92,6 +94,26 @@ class CampusPedestrianDataTest {
         assertEquals(
             "-119.0448354,34.1649277",
             geoJson.substringAfter("\"coordinates\":[[").substringBefore("]")
+        )
+    }
+
+    @Test
+    fun routeCameraBoundsIncludeTheStartAndEntranceEndpointWithoutChangingGeometry() {
+        val route = assertIs<PedestrianRouteResult.Available>(
+            PedestrianRoutePlanner.route(
+                reading(34.1649277, -119.0448354), now, "broome-library", network
+            )
+        )
+        val bounds = routeBounds(route.points)
+
+        assertEquals(route.points.minOf { it.longitude }, bounds.southwest.longitude)
+        assertEquals(route.points.minOf { it.latitude }, bounds.southwest.latitude)
+        assertEquals(route.points.maxOf { it.longitude }, bounds.northeast.longitude)
+        assertEquals(route.points.maxOf { it.latitude }, bounds.northeast.latitude)
+        assertTrue(routeGeoJson(route.points).contains("[-119.0448354,34.1649277"))
+        assertEquals(
+            """{"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"Point","coordinates":[-119.0410829,34.1626619]}}]}""",
+            destinationGeoJson(route.points.last())
         )
     }
 

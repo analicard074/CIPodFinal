@@ -7,12 +7,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,6 +65,8 @@ fun CampusMapScreen(
     var openDirectoryOnIndoorOpen by remember { mutableStateOf(false) }
     var searchResultsVisible by remember { mutableStateOf(false) }
     var routeResult by remember { mutableStateOf<PedestrianRouteResult?>(null) }
+    var routeFitRevision by remember { mutableStateOf(0) }
+    var directionsExpanded by remember { mutableStateOf(false) }
     LaunchedEffect(navigation.destinationId, navigation.destinationRoomId, accessibilityEnabled) {
         routeResult = null
     }
@@ -86,6 +84,7 @@ fun CampusMapScreen(
     // One event path for markers, search results, and the destination chip.
     var showBuilding: (CampusBuilding) -> Unit = {}
     val mapState = rememberEphemeralCampusMapState {
+        PedestrianRouteOverlay(routeResult)
         BuildingMarkers(
             buildings = navigation.results,
             selectedId = navigation.selectedBuildingId,
@@ -96,7 +95,20 @@ fun CampusMapScreen(
             reading = locationSession.state.reading,
             expired = locationSession.state.status == LocationStatus.Stale
         )
-        PedestrianRouteOverlay(routeResult)
+    }
+    LaunchedEffect(routeResult, routeFitRevision) {
+        val route = routeResult as? PedestrianRouteResult.Available ?: return@LaunchedEffect
+        mapState.animateCameraToBounds(
+            routeBounds(route.points),
+            fit = CameraFit(
+                fitPadding = DpPadding(
+                    left = 40.dp,
+                    top = 120.dp,
+                    right = 40.dp,
+                    bottom = 320.dp
+                )
+            )
+        )
     }
     val currentLocation = locationSession.state.reading
     val isOutsideCampus = if (currentLocation != null) {
@@ -243,108 +255,80 @@ fun CampusMapScreen(
                 if (!searchResultsVisible) {
                     StartingPointControls(locationSession, controller)
                 }
-                navigation.destination?.takeUnless { searchResultsVisible }?.let { destination ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-                    ) {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp)
-                        )
-                        {
-                            TextButton(
-                                onClick = { showBuilding(destination) },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Text("Destination: ${destination.name}")
-                            }
-                            TextButton(onClick = { onNavigationChange(navigation.clearDestination()) }) {
-                                Text("Clear destination")
-                            }
-                        }
-                    }
-                    if (destination.id == "broome-library") {
-                        val room = RoomDirectory.find(destination.id, navigation.destinationRoomId)
-                        val floorLabel = room?.floorPlanId?.let { floorId ->
-                            FloorPlanCatalog.forBuilding(destination.id)
-                                .firstOrNull { it.id == floorId }
-                                ?.label
-                                ?.substringBefore(" •")
-                        }
-                        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
-                            Card(elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)) {
-                                Column(Modifier.fillMaxWidth().padding(12.dp)) {
-                                    Text(
-                                        room?.let { "Classroom ${it.number} • ${floorLabel ?: "Floor not assigned"}" }
-                                            ?: "Choose a Broome room in Room Directory."
-                                    )
-                                    Row {
-                                        TextButton(
-                                            onClick = {
-                                                openDirectoryOnIndoorOpen = true
-                                                indoorBuildingId = destination.id
-                                            }
-                                        ) { Text(if (room == null) "Choose room" else "Open indoor plan") }
-                                        TextButton(onClick = {
-                                            routeResult = when (val start = locationSession.state.start) {
-                                                is StartingPoint.Building -> PedestrianRoutePlanner.routeFromBuilding(
-                                                    startBuildingId = start.buildingId,
-                                                    destinationBuildingId = destination.id,
-                                                    network = CampusPedestrianData.current,
-                                                    accessibilityRequested = accessibilityEnabled
-                                                )
-                                                is StartingPoint.Device -> PedestrianRoutePlanner.route(
-                                                    reading = start.reading,
-                                                    nowMillis = locationNowMillis(),
-                                                    destinationBuildingId = destination.id,
-                                                    network = CampusPedestrianData.current,
-                                                    accessibilityRequested = accessibilityEnabled
-                                                )
-                                                null -> locationSession.state.reading?.let { reading ->
-                                                    PedestrianRoutePlanner.route(
-                                                        reading = reading,
-                                                        nowMillis = locationNowMillis(),
-                                                        destinationBuildingId = destination.id,
-                                                        network = CampusPedestrianData.current,
-                                                        accessibilityRequested = accessibilityEnabled
-                                                    )
-                                                } ?: PedestrianRouteResult.Unavailable(
-                                                    PedestrianRouteResult.Reason.LOCATION_NOT_USABLE
-                                                )
-                                            }
-                                        }) { Text("Find walking route") }
-                                    }
-                                    when (val result = routeResult) {
-                                        is PedestrianRouteResult.Available -> Text(
-                                            if (result.accessibilityVerified) "Step-free route verified • ${result.distanceMeters.toInt()} m"
-                                            else "Walking route • ${result.distanceMeters.toInt()} m"
-                                        )
-                                        is PedestrianRouteResult.Unavailable -> Text(
-                                            when (result.reason) {
-                                                PedestrianRouteResult.Reason.ACCESSIBILITY_NOT_VERIFIED -> "Route unavailable. Accessibility has not been verified for the walkway network and entrance."
-                                                PedestrianRouteResult.Reason.LOCATION_NOT_USABLE -> "Route unavailable: use a fresh, precise GPS reading."
-                                                PedestrianRouteResult.Reason.OUTSIDE_COVERAGE -> "Route unavailable from this location."
-                                                PedestrianRouteResult.Reason.NO_NEARBY_WALKWAY -> "Route unavailable: no supported walkway is close enough."
-                                                PedestrianRouteResult.Reason.ENTRANCE_NOT_VERIFIED -> "Route unavailable: a verified Broome entrance connection is missing."
-                                                PedestrianRouteResult.Reason.NO_CONNECTED_ROUTE -> "Route unavailable: no connected supported walkway route was found."
-                                                PedestrianRouteResult.Reason.NETWORK_NOT_VERIFIED -> "Route unavailable: verified campus walkway data and a Broome entrance connection are not yet available."
-                                            },
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                        null -> if (accessibilityEnabled) Text(
-                                            "Route unavailable. Accessibility has not been verified for the walkway network and entrance.",
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
+            }
+            navigation.destination?.takeUnless { searchResultsVisible }?.let { destination ->
+                val room = RoomDirectory.find(destination.id, navigation.destinationRoomId)
+                val floorLabel = room?.floorPlanId?.let { floorId ->
+                    FloorPlanCatalog.forBuilding(destination.id)
+                        .firstOrNull { it.id == floorId }
+                        ?.label
+                        ?.substringBefore(" •")
                 }
+                val startLabel = when (val start = locationSession.state.start) {
+                    is StartingPoint.Building -> CampusBuildings.find(start.buildingId)?.name ?: "Selected building"
+                    is StartingPoint.Device -> "My location"
+                    null -> if (locationSession.state.reading != null) "Current location" else "Choose a starting point"
+                }
+                DirectionsPanel(
+                    expanded = directionsExpanded,
+                    onExpandedChange = { directionsExpanded = it },
+                    startLabel = startLabel,
+                    destinationName = destination.name,
+                    roomLabel = room?.let {
+                        "Classroom ${it.number} • ${floorLabel ?: "Floor not assigned"}"
+                    },
+                    routeResult = routeResult,
+                    accessibilityEnabled = accessibilityEnabled,
+                    supportsBroomeActions = destination.id == "broome-library",
+                    onFindRoute = {
+                        routeResult = when (val start = locationSession.state.start) {
+                            is StartingPoint.Building -> PedestrianRoutePlanner.routeFromBuilding(
+                                startBuildingId = start.buildingId,
+                                destinationBuildingId = destination.id,
+                                network = CampusPedestrianData.current,
+                                accessibilityRequested = accessibilityEnabled
+                            )
+                            is StartingPoint.Device -> PedestrianRoutePlanner.route(
+                                reading = start.reading,
+                                nowMillis = locationNowMillis(),
+                                destinationBuildingId = destination.id,
+                                network = CampusPedestrianData.current,
+                                accessibilityRequested = accessibilityEnabled
+                            )
+                            null -> locationSession.state.reading?.let { reading ->
+                                PedestrianRoutePlanner.route(
+                                    reading = reading,
+                                    nowMillis = locationNowMillis(),
+                                    destinationBuildingId = destination.id,
+                                    network = CampusPedestrianData.current,
+                                    accessibilityRequested = accessibilityEnabled
+                                )
+                            } ?: PedestrianRouteResult.Unavailable(
+                                PedestrianRouteResult.Reason.LOCATION_NOT_USABLE
+                            )
+                        }
+                        directionsExpanded = true
+                        routeFitRevision++
+                    },
+                    onChooseRoom = if (destination.id == "broome-library") ({
+                        openDirectoryOnIndoorOpen = true
+                        indoorBuildingId = destination.id
+                    }) else null,
+                    onOpenIndoorPlan = if (FloorPlanCatalog.forBuilding(destination.id).isNotEmpty()) ({
+                        openDirectoryOnIndoorOpen = false
+                        indoorBuildingId = destination.id
+                    }) else null,
+                    onClear = {
+                        routeResult = null
+                        routeFitRevision++
+                        directionsExpanded = false
+                        onNavigationChange(navigation.clearDestination().copy(selectedBuildingId = null))
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(start = 12.dp, end = 56.dp, top = 8.dp, bottom = 52.dp)
+                )
             }
         }
         navigation.selectedBuilding?.let { building ->
@@ -354,7 +338,7 @@ fun CampusMapScreen(
                 onSelectDestination = {
                     focusManager.clearFocus()
                     val destinationState = navigation.selectDestination(building.id)
-                    onNavigationChange(destinationState)
+                    onNavigationChange(destinationState.copy(selectedBuildingId = null))
                     building.coordinates?.let { coordinates ->
                         mapState.setCameraPosition(
                             CameraPosition(
