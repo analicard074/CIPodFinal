@@ -11,6 +11,10 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
@@ -39,6 +43,33 @@ class LocationSessionTest {
         }
         override fun openAppSettings() = Unit
         override fun openLocationSettings() = Unit
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test fun clearedStartingPointStaysEmptyAfterAutomaticRefreshRestarts() = runTest {
+        val controller = FakeController().also {
+            it.permission.complete(true)
+            it.result.complete(LocationResult.Success(LocationReading(
+                34.162197, -119.044662, 10.0, locationNowMillis(), true
+            )))
+        }
+        val session = LocationSession(backgroundScope)
+        val refresh = backgroundScope.launch { session.refreshAutomatically(controller) }
+        runCurrent()
+        assertIs<StartingPoint.Device>(session.state.start)
+
+        session.clear()
+        refresh.cancelAndJoin()
+        backgroundScope.launch { session.refreshAutomatically(controller) }
+        runCurrent()
+        assertNull(session.state.start)
+        assertEquals(1, controller.readingCalls)
+
+        // An explicit choice enables the device starting point again.
+        session.requestLocation(controller)
+        runCurrent()
+        assertIs<StartingPoint.Device>(session.state.start)
+        assertEquals(2, controller.readingCalls)
     }
 
     @Test fun permittedReadingAutomaticallyBecomesStartingPoint() = runBlocking {

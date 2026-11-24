@@ -1,6 +1,6 @@
 package com.example.cipod_final.location
 
-/** Volatile snapshot only. Never serialize, save, log, or send this object to a server. */
+/** Volatile snapshot only. Never save or log. Only selected coordinates go to ORS on an explicit route request. */
 data class LocationReading(
     val latitude: Double,
     val longitude: Double,

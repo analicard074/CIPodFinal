@@ -21,8 +21,13 @@ googleServices = "4.5.0"
 firebaseBom = "35.0.2"
 coroutines = "1.11.0"
 serialization = "1.11.0"
+ktor = "3.6.1"
 
 [libraries]
+ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
+ktor-client-android = { module = "io.ktor:ktor-client-android", version.ref = "ktor" }
+ktor-client-darwin = { module = "io.ktor:ktor-client-darwin", version.ref = "ktor" }
+ktor-client-mock = { module = "io.ktor:ktor-client-mock", version.ref = "ktor" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidx-testRunner" }
 firebase-auth = { module = "dev.gitlive:firebase-auth", version.ref = "gitliveFirebase" }

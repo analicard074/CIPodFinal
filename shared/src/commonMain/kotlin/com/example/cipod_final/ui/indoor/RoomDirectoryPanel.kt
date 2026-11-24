@@ -24,7 +24,9 @@ import androidx.compose.ui.Alignment
 internal fun RoomDirectoryPanel(
     state: RoomDirectoryState,
     onChange: (RoomDirectoryState) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    backLabel: String = "Back to floor viewer",
+    onViewFloorPlan: (() -> Unit)? = null
 ) {
     val scroll = rememberLazyListState()
     LaunchedEffect(state.selectedRoomId) {
@@ -33,7 +35,14 @@ internal fun RoomDirectoryPanel(
     Dialog(onDismissRequest = onBack, properties = DialogProperties(usePlatformDefaultWidth = false)) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             Column(Modifier.fillMaxSize().safeDrawingPadding().imePadding().padding(16.dp)) {
-                TextButton(onClick = onBack) { Text("Back to floor viewer") }
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onBack) { Text(backLabel) }
+                    Spacer(Modifier.weight(1f))
+                    TextButton(
+                        onClick = { onViewFloorPlan?.invoke() },
+                        enabled = onViewFloorPlan != null
+                    ) { Text("View Floor Plan") }
+                }
                 Text(
                     "${CampusBuildings.find(state.buildingId)?.name.orEmpty()} room directory",
                     style = MaterialTheme.typography.titleLarge
