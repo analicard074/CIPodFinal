@@ -58,6 +58,11 @@ object RoomDirectory {
 
             else -> null
         }
+        val floorPlanId = when (number.firstOrNull()) {
+            '1' -> "broome-library-first-floor-draft"
+            '2' -> "broome-library-second-floor-draft"
+            else -> null
+        }
         DirectoryRoom(
             id = "broome-library-$number",
             buildingId = "broome-library",
@@ -65,7 +70,8 @@ object RoomDirectory {
             publishedType = type,
             sourceUrl = broomeSourceURl,
             reviewedOn = "2026-11-19",
-            category = category
+            category = category,
+            floorPlanId = floorPlanId
         )
     }
 
