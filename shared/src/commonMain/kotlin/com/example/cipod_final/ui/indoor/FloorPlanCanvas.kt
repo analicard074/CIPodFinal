@@ -41,6 +41,7 @@ import com.example.cipod_final.indoor.FloorPlanContent
 import com.example.cipod_final.indoor.PlanPoint
 import com.example.cipod_final.indoor.PlanTransform
 import com.example.cipod_final.indoor.RoomMarker
+import com.example.cipod_final.indoor.RoomHighlight
 import com.example.cipod_final.ui.theme.ChannelBlue
 import com.example.cipod_final.ui.theme.Seafoam
 import com.example.cipod_final.ui.theme.WarmCream
@@ -57,7 +58,9 @@ internal fun FloorPlanCanvas(
     onSelectMarker: (String) -> Unit,
     onPlaceMarker: (PlanPoint) -> Unit,
     onMoveMarker: (String, PlanPoint) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    roomHighlight: RoomHighlight? = null,
+    highlightColor: Color? = null,
 ) {
     val currentMarkers by rememberUpdatedState(markers)
     val selectMarker by rememberUpdatedState(onSelectMarker)
@@ -151,6 +154,28 @@ internal fun FloorPlanCanvas(
                     drawText(measurer, "Demo zone ${index + 1}", topLeft = Offset(x + 6.dp.toPx(), y + 6.dp.toPx()),
                         style = androidx.compose.ui.text.TextStyle(color = ChannelBlue, fontSize = 12.sp))
                 }
+            }
+            val selectedRoom = roomHighlight
+            val selectedRoomColor = highlightColor
+            if (selectedRoom != null && selectedRoomColor != null) {
+                val (left, top) = t.screen(PlanPoint(selectedRoom.left, selectedRoom.top))
+                val (right, bottom) = t.screen(PlanPoint(selectedRoom.right, selectedRoom.bottom))
+                val topLeft = Offset(left, top)
+                val size = Size(right - left, bottom - top)
+                // A dark under-stroke keeps the category-colored outline visible on the
+                // similarly orange map fill. Both strokes use the image's PlanTransform.
+                drawRect(
+                    color = Color(0xFF5A3210),
+                    topLeft = topLeft,
+                    size = size,
+                    style = Stroke(5.dp.toPx())
+                )
+                drawRect(
+                    color = selectedRoomColor,
+                    topLeft = topLeft,
+                    size = size,
+                    style = Stroke(2.5.dp.toPx())
+                )
             }
             drawRect(Color.Gray, Offset(t.left, t.top), Size(t.width, t.height), style = Stroke(2.dp.toPx()))
             markers.forEach { marker ->

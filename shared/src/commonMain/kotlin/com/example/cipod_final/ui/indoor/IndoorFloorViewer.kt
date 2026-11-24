@@ -37,6 +37,7 @@ import com.example.cipod_final.indoor.RoomMarkerType
 import com.example.cipod_final.indoor.RoomDirectoryState
 import com.example.cipod_final.indoor.rememberFloorPlanExporter
 import kotlinx.coroutines.CancellationException
+import com.example.cipod_final.indoor.RoomHighlightRegistry
 
 /** A full-screen modal preserves the outdoor map composition and its memory-only camera. */
 @Composable
@@ -59,32 +60,55 @@ internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState,
     LaunchedEffect(plan.id, loadAttempt) {
         if (!editor.loaded(plan)) {
             loadError = false
-            try { editor.load(plan, FloorPlanRepository.load(plan)) }
-            catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { loadError = true }
+            try {
+                editor.load(plan, FloorPlanRepository.load(plan))
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                loadError = true
+            }
         }
     }
-    Dialog(onDismissRequest = exit, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+    Dialog(
+        onDismissRequest = exit,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             BoxWithConstraints(Modifier.fillMaxSize().safeDrawingPadding().imePadding()) {
                 val editorMaxHeight = (maxHeight * .30f).coerceAtMost(240.dp)
                 Column(Modifier.fillMaxSize().padding(12.dp)) {
                     Row {
                         TextButton(onClick = exit) { Text("Back to map") }
-                        Text(CampusBuildings.find(buildingId)?.name.orEmpty(), Modifier.padding(12.dp),
-                            style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            CampusBuildings.find(buildingId)?.name.orEmpty(),
+                            Modifier.padding(12.dp),
+                            style = MaterialTheme.typography.titleLarge
+                        )
                     }
                     if (plan.isDemonstration) {
-                        Text("FICTIONAL DEMONSTRATION — not an actual building layout.",
-                            color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.titleSmall)
-                        Text("Demonstration layouts are fictional test canvases, not verified floor plans or floor numbers.",
-                            style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "FICTIONAL DEMONSTRATION — not an actual building layout.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Text(
+                            "Demonstration layouts are fictional test canvases, not verified floor plans or floor numbers.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
                     } else if (plan.isReferenceDraft) {
-                        Text("Reference-based draft — not verified.", color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.titleSmall)
-                        Text("Room positions remain pending verification. Review the east connector, lower-right wing, doors, and partitions.",
-                            style = MaterialTheme.typography.bodySmall)
-                    } else Text("Reviewed plan • ${plan.reviewedOn}", style = MaterialTheme.typography.bodySmall)
+                        Text(
+                            "Reference-based draft — not verified.",
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.titleSmall
+                        )
+                        Text(
+                            "Room positions remain pending verification. Review the east connector, lower-right wing, doors, and partitions.",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    } else Text(
+                        "Reviewed plan • ${plan.reviewedOn}",
+                        style = MaterialTheme.typography.bodySmall
+                    )
                     Row(Modifier.horizontalScroll(rememberScrollState())) {
                         TextButton(onClick = {
                             pendingType = null
@@ -96,85 +120,173 @@ internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState,
                                 Text(if (item.id == plan.id) "✓ ${item.label}" else item.label)
                             }
                         }
-                        TextButton(onClick = { showMarkers = true }) { Text("Markers (${markers.size})") }
+                        TextButton(onClick = {
+                            showMarkers = true
+                        }) { Text("Markers (${markers.size})") }
                     }
                     if (loadError) {
                         Text("Marker data could not be loaded. This plan's marker data needs review.")
                         TextButton(onClick = { loadAttempt++ }) { Text("Retry plan data") }
                     } else if (!editor.loaded(plan)) Text("Loading plan markers…")
                     if (editor.developerEnabled) {
-                        Column(Modifier.fillMaxWidth().heightIn(max = editorMaxHeight).verticalScroll(rememberScrollState())) {
-                            Text("DEVELOPER TOOLS • ${if (editor.dirty(plan)) "Unsaved draft in memory" else "Session draft"}",
-                                style = MaterialTheme.typography.labelMedium)
+                        Column(
+                            Modifier.fillMaxWidth().heightIn(max = editorMaxHeight)
+                                .verticalScroll(rememberScrollState())
+                        ) {
+                            Text(
+                                "DEVELOPER TOOLS • ${if (editor.dirty(plan)) "Unsaved draft in memory" else "Session draft"}",
+                                style = MaterialTheme.typography.labelMedium
+                            )
                             Row {
-                                TextButton(onClick = {
-                                    editor.enableEditing(!editor.editing)
-                                    pendingType = null
-                                    selectedMarkerId = null
-                                }, enabled = editor.loaded(plan)) { Text(if (editor.editing) "Read-only preview" else "Edit markers") }
-                                TextButton(onClick = { exportJson = editor.export(plan) }, enabled = editor.loaded(plan)) { Text("Export JSON") }
+                                TextButton(
+                                    onClick = {
+                                        editor.enableEditing(!editor.editing)
+                                        pendingType = null
+                                        selectedMarkerId = null
+                                    },
+                                    enabled = editor.loaded(plan)
+                                ) { Text(if (editor.editing) "Read-only preview" else "Edit markers") }
+                                TextButton(
+                                    onClick = { exportJson = editor.export(plan) },
+                                    enabled = editor.loaded(plan)
+                                ) { Text("Export JSON") }
                             }
-                            FloorPlanEditorControls(plan, editor, selected, pendingType,
+                            FloorPlanEditorControls(
+                                plan, editor, selected, pendingType,
                                 onArmPlacement = { pendingType = it; selectedMarkerId = null },
                                 onDelete = { selectedMarkerId = null })
                         }
                     }
                     key(plan.id) {
+                        val selectedRoom = directory.selectedRoom
+
+                        val roomHighlight = selectedRoom?.let { room ->
+                            RoomHighlightRegistry.find(
+                                roomId = room.id,
+                                floorPlanId = plan.id,
+                                planRevision = plan.revision
+                            )
+                        }
+
                         FloorPlanCanvas(
-                            plan = plan, markers = markers, editing = editor.developerEnabled && editor.editing,
+                            plan = plan,
+                            markers = markers,
+                            editing = editor.developerEnabled && editor.editing,
                             selectedMarkerId = selectedMarkerId,
-                            onSelectMarker = { selectedMarkerId = it; pendingType = null },
+
+                            roomHighlight = roomHighlight,
+                            highlightColor = selectedRoom?.category?.color,
+
+                            onSelectMarker = {
+                                selectedMarkerId = it
+                                pendingType = null
+                            },
+
                             onPlaceMarker = { point ->
                                 pendingType?.let { type ->
-                                    editor.add(plan, type, point)?.let { selectedMarkerId = it.id }
+                                    editor.add(plan, type, point)?.let {
+                                        selectedMarkerId = it.id
+                                    }
                                     pendingType = null
                                 }
                             },
-                            onMoveMarker = { id, point -> editor.move(plan, id, point) },
+
+                            onMoveMarker = { id, point ->
+                                editor.move(plan, id, point)
+                            },
+
                             modifier = Modifier.weight(1f)
                         )
                     }
+
                 }
             }
         }
-    }
-    if (showDirectory) {
-        RoomDirectoryPanel(directory, onChange = { directory = it }, onBack = { showDirectory = false })
-    }
-    if (showMarkers) {
-        AlertDialog(onDismissRequest = { showMarkers = false }, title = { Text("${plan.label} markers") },
-            text = {
-                Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
-                    if (markers.isEmpty()) Text("No markers on this layout.")
-                    markers.forEach { marker ->
-                        TextButton(onClick = { selectedMarkerId = marker.id; pendingType = null; showMarkers = false }) {
-                            Text("${marker.name} • ${marker.type.label}")
+
+        if (showDirectory) {
+            RoomDirectoryPanel(
+                state = directory,
+                onChange = { updatedState ->
+                    directory = updatedState
+
+                    val selectedRoom = updatedState.selectedRoom
+                    val targetFloorId = selectedRoom?.floorPlanId
+
+                    if (targetFloorId != null &&
+                        plans.any { it.id == targetFloorId }
+                    ) {
+                        selectedId = targetFloorId
+                    }
+                },
+                onBack = {
+                    showDirectory = false
+                }
+            )
+        }
+
+        if (showMarkers) {
+            AlertDialog(
+                onDismissRequest = { showMarkers = false },
+                title = { Text("${plan.label} markers") },
+                text = {
+                    Column(Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState())) {
+                        if (markers.isEmpty()) Text("No markers on this layout.")
+                        markers.forEach { marker ->
+                            TextButton(onClick = {
+                                selectedMarkerId = marker.id; pendingType = null; showMarkers =
+                                false
+                            }) {
+                                Text("${marker.name} • ${marker.type.label}")
+                            }
                         }
                     }
-                }
-            }, confirmButton = { TextButton(onClick = { showMarkers = false }) { Text("Close") } })
-    }
-    if (selected != null && !editor.editing && !showMarkers) {
-        AlertDialog(onDismissRequest = { selectedMarkerId = null }, title = { Text(selected.name) },
-            text = { Text("${selected.type.label}${when { plan.isDemonstration -> " • fictional demonstration marker"; plan.isReferenceDraft -> " • unverified draft marker"; else -> "" }}") },
-            confirmButton = { TextButton(onClick = { selectedMarkerId = null }) { Text("Close") } })
-    }
-    exportJson?.let { json ->
-        // Clipboard is accessed only by this explicit developer export action.
-        val copyJson = rememberFloorPlanExporter()
-        var copyResult by remember(json) { mutableStateOf<String?>(null) }
-        AlertDialog(onDismissRequest = { exportJson = null }, title = { Text("Export ${plan.id}.json") },
-            text = {
-                Column {
-                    Text("Copy this JSON and save it in your project. This does not save the draft automatically.")
-                    OutlinedTextField(value = json, onValueChange = {}, readOnly = true,
-                        modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp), minLines = 5)
-                    copyResult?.let { Text(it) }
-                }
-            }, confirmButton = { TextButton(onClick = {
-                copyResult = if (copyJson(json)) "Copied JSON. Save it to a file to keep your edits."
-                    else "Clipboard unavailable. Select and copy the JSON text manually."
-            }) { Text("Copy JSON") } },
-            dismissButton = { TextButton(onClick = { exportJson = null }) { Text("Close") } })
+                },
+                confirmButton = { TextButton(onClick = { showMarkers = false }) { Text("Close") } })
+        }
+        if (selected != null && !editor.editing && !showMarkers) {
+            AlertDialog(
+                onDismissRequest = { selectedMarkerId = null },
+                title = { Text(selected.name) },
+                text = {
+                    Text(
+                        "${selected.type.label}${
+                            when {
+                                plan.isDemonstration -> " • fictional demonstration marker"; plan.isReferenceDraft -> " • unverified draft marker"; else -> ""
+                            }
+                        }"
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        selectedMarkerId = null
+                    }) { Text("Close") }
+                })
+        }
+        exportJson?.let { json ->
+            // Clipboard is accessed only by this explicit developer export action.
+            val copyJson = rememberFloorPlanExporter()
+            var copyResult by remember(json) { mutableStateOf<String?>(null) }
+            AlertDialog(
+                onDismissRequest = { exportJson = null },
+                title = { Text("Export ${plan.id}.json") },
+                text = {
+                    Column {
+                        Text("Copy this JSON and save it in your project. This does not save the draft automatically.")
+                        OutlinedTextField(
+                            value = json, onValueChange = {}, readOnly = true,
+                            modifier = Modifier.fillMaxWidth().heightIn(max = 260.dp), minLines = 5
+                        )
+                        copyResult?.let { Text(it) }
+                    }
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        copyResult =
+                            if (copyJson(json)) "Copied JSON. Save it to a file to keep your edits."
+                            else "Clipboard unavailable. Select and copy the JSON text manually."
+                    }) { Text("Copy JSON") }
+                },
+                dismissButton = { TextButton(onClick = { exportJson = null }) { Text("Close") } })
+        }
     }
 }
