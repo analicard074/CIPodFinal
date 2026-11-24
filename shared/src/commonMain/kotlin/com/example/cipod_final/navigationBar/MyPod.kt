@@ -84,7 +84,7 @@ fun MyPodScreen(
     onClubsExpandedChange: (Boolean) -> Unit,
     classes: List<MyPodClass>,
     onClassesChange: (List<MyPodClass>) -> Unit,
-    onDirectionsClick: () -> Unit,
+    onDirectionsClick: (MyPodClass) -> Unit,
     loadClassSessions: suspend () -> List<ClassSession>,
     clubs: List<MyPodClub>,
     onClubsChange: (List<MyPodClub>) -> Unit,
@@ -211,7 +211,7 @@ private fun ClassesSection(
     onExpandedChange: (Boolean) -> Unit,
     classes: List<MyPodClass>,
     onClassesChange: (List<MyPodClass>) -> Unit,
-    onDirectionsClick: () -> Unit,
+    onDirectionsClick: (MyPodClass) -> Unit,
     loadClassSessions: suspend () -> List<ClassSession>,
 ) {
     var showAddClass by rememberSaveable { mutableStateOf(false) }
@@ -259,7 +259,7 @@ private fun ClassesSection(
                             course = course,
                             containerColor = classListColor,
                             onRemove = { pendingRemoval = index },
-                            onDirectionsClick = onDirectionsClick,
+                            onDirectionsClick = { onDirectionsClick(course) },
                         )
                     }
                 }

@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.buildings.CampusNavigationState
 import com.example.cipod_final.data.ClassSession
 import com.example.cipod_final.data.Club
@@ -105,6 +106,15 @@ private fun restoreLegacyClassRecords(values: List<String>): List<MyPodClass> =
     }
 
 private val LEGACY_LOCATION_PATTERN = Regex("^(.+), Floor (.+), Room (.+)$")
+
+internal fun CampusNavigationState.directionsForClass(course: MyPodClass): CampusNavigationState {
+    val buildingName = course.building.trim()
+    val building = CampusBuildings.all.firstOrNull {
+        it.name.equals(buildingName, ignoreCase = true) || it.id.equals(buildingName, ignoreCase = true)
+    }
+    return if (building != null) selectDestination(building.id)
+    else copy(destinationId = null, selectedBuildingId = null)
+}
 
 @Composable
 fun NaviBar(
@@ -251,7 +261,10 @@ fun NaviBar(
                     onAccessibilityChange = { accessibilityEnabled = it },
                     classes = classes,
                     onClassesChange = { updateSelections(it, clubs) },
-                    onDirectionsClick = { selected = "Directions" }
+                    onDirectionsClick = { course ->
+                        navigation = navigation.directionsForClass(course)
+                        selected = "Directions"
+                    }
                 )
 
                 "Resources" -> {

@@ -1,8 +1,11 @@
 package com.example.cipod_final.ui.map
 
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.cipod_final.buildings.BuildingCoordinates
 import com.example.cipod_final.buildings.CampusBuilding
@@ -87,7 +90,14 @@ internal fun rememberWalkingRoute(
 @Composable
 internal fun WalkingRouteControls(state: WalkingRouteState) {
     if (state.busy) Text("Loading walking route…")
-    state.message?.let { Text(it, style = androidx.compose.material3.MaterialTheme.typography.bodySmall) }
+    state.message?.let {
+        Text(
+            it,
+            style = androidx.compose.material3.MaterialTheme.typography.bodySmall,
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+        )
+    }
     if (state.failed) {
         TextButton(onClick = { state.retry++ }) { Text("Retry route") }
     }
