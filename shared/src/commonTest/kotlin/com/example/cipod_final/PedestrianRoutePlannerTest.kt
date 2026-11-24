@@ -1,7 +1,6 @@
 package com.example.cipod_final
 
 import com.example.cipod_final.location.LocationReading
-import com.example.cipod_final.buildings.CampusNavigationState
 import com.example.cipod_final.routing.GeoPoint
 import com.example.cipod_final.routing.PedestrianNetwork
 import com.example.cipod_final.routing.PedestrianRoutePlanner
@@ -129,27 +128,4 @@ class PedestrianRoutePlannerTest {
         )
     }
 
-    @Test
-    fun roomAndFloorDestinationSurviveMapStateAndClearWithDestination() {
-        val selected = CampusNavigationState().selectDestination("broome-library")
-            .selectRoom("broome-library-2330", "broome-library-second-floor-draft")
-        assertEquals("broome-library-2330", selected.destinationRoomId)
-        assertEquals("broome-library-second-floor-draft", selected.destinationFloorPlanId)
-        assertEquals(null, selected.selectDestination("sierra-hall").destinationRoomId)
-        assertEquals(null, selected.clearDestination().destinationFloorPlanId)
-    }
-
-    @Test
-    fun broomeDestinationCanStartWithClassroom2330ForTheDemonstration() {
-        val selected = CampusNavigationState().selectDestination(
-            id = "broome-library",
-            initialRoomId = "broome-library-2330",
-            initialFloorPlanId = "broome-library-second-floor-draft"
-        )
-        assertEquals("broome-library-2330", selected.destinationRoomId)
-        assertEquals("broome-library-second-floor-draft", selected.destinationFloorPlanId)
-        assertEquals(selected, selected.selectDestination(
-            "broome-library", "another-room", "another-floor"
-        ))
-    }
 }

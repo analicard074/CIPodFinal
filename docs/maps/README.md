@@ -419,50 +419,46 @@ and adding reviewed real images. Outdoor map/location behavior remains separate.
 
 ## Campus-to-classroom routing status
 
-The Directions UI can retain a selected Broome room and floor-plan ID while the student returns
-to the outdoor map. Reopening the indoor viewer restores that room, floor, and existing room
-highlight. Classroom 2330 is the initial destination example. The current destination state does
-not serialize GPS coordinates.
+The Directions UI lets students choose Broome Library as a building destination, then optionally
+select a room from the existing searchable directory. It retains the selected room and floor-plan
+ID while returning to the outdoor map. Reopening the indoor viewer restores the room, floor, and
+existing room highlight. The current destination state does not serialize GPS coordinates.
 
-The route planner accepts a connected pedestrian graph plus an explicitly surveyed entrance
-node. It checks the current location through the existing precise-permission, accuracy, and
-two-minute freshness policy; checks an audited coverage polygon; then snaps to a walkway edge
-within 20 meters and uses Dijkstra to find a connected path. MapLibre Compose 0.20.0 draws available routes as an inline GeoJSON
-LineString. No straight-line fallback is used.
+The route planner checks the existing precise-permission, accuracy, and two-minute freshness
+policy; checks the reviewed coverage polygon; snaps to a mapped walkway within 20 meters; then
+uses Dijkstra to find a connected path. MapLibre Compose 0.20.0 draws an available route as a
+GeoJSON LineString. There is no straight-line fallback.
 
-**A real outdoor route cannot currently be displayed.** A read-only extract from the OSM API
-(`bbox=-119.047,34.161,-119.039,34.167`, reviewed 2026-11-23) contains 173 outdoor `footway`/
-`path` ways. By shared OSM node IDs, 168 ways form one connected component; four smaller
-components contain the remaining five ways. The largest component passes within about 23 m of
-the Gateway Hall map marker and 16 m of the Broome Library map marker. These are distances to
-building/map points, not evidence that either point is a usable route endpoint. Several mapped
-footways also meet or touch the Broome building outline, but the library outline has no entrance
-tag, and the extract contains no tagged entrance at the library footprint. A path touching a
-building outline does not establish a door or a pedestrian connection through the wall.
+**The reviewed network can now route to Broome Library's exterior entrance approach.** The
+production graph includes the largest shared-node-connected component in a read-only OSM API
+extract requested for (`bbox=-119.047,34.161,-119.039,34.167`, reviewed 2026-11-24): 168
+`footway`/`path` ways, 744 nodes, and 802 consecutive-node edges. Three smaller components (5 ways
+total) are omitted. The API returned complete geometries for selected ways, extending beyond the
+request box; the explicit route coverage rectangle is latitude 34.1583–34.1672, longitude
+-119.0473–-119.0383. A start still needs a usable fresh, precise GPS reading and a walkway within
+20 meters.
 
-CSUCI's event-space page describes the Broome Library Plaza as situated at the library entrance.
-That supports the existence of an entrance plaza, but does not identify a particular public door,
-geographic door coordinate, or which OSM footway connects to it. CSUCI's campus-map help also
-documents pedestrian accessibility information, but does not supply route geometry that can be
-used to resolve this connection. Therefore no entrance node or connector has been selected, and
-the production graph remains deliberately empty. The app continues to report “Route unavailable”;
-no straight-line or guessed connector is used.
+The supplied Google Maps point (34.162577, -119.041431) lies outside the OSM library outline,
+about 24.9 m from its nearest boundary, and about 0.3 m from concrete footway way 646586051.
+It is therefore treated as a plaza/walkway point, not a door coordinate. That footway is
+connected by concrete way 817294745 to OSM node 10880735696 on the Broome outline. The node is
+also shared by covered footway 1170524631 and canopy feature 712128842. The network distance
+from the supplied point's nearest mapped position to this exterior approach node is about 33.4 m.
+CSUCI describes Broome Library Plaza as situated at the library entrance and publishes a plaza
+layout. Together, these sources support ending the outdoor route at the mapped covered entrance
+approach. They do not establish the exact public door threshold. The Street View screenshot
+mentioned during review was not attached to the message available to this workspace, so no claim
+about camera position or exact glass-door coordinates is made.
 
-The OSM extract is © OpenStreetMap contributors and is available under the Open Database License
-(ODbL). It is an audit input only; no OSM path geometry has been copied into the app. Sources:
-[OSM API map extract for the reviewed area](https://api.openstreetmap.org/api/0.6/map?bbox=-119.047,34.161,-119.039,34.167),
-[OSM attribution and ODbL](https://www.openstreetmap.org/copyright), [CSUCI Broome Library Plaza
-description](https://www.csuci.edu/office-departments/university-events/locations/athletic-outdoor-spaces.html),
+The OSM graph and approach point are source-attributed in
+[`CampusPedestrianData.kt`](../../shared/src/commonMain/kotlin/com/example/cipod_final/routing/CampusPedestrianData.kt).
+OSM geometry is © OpenStreetMap contributors under ODbL 1.0. See the [OSM area extract](https://api.openstreetmap.org/api/0.6/map?bbox=-119.047,34.161,-119.039,34.167),
+[OSM attribution and license](https://www.openstreetmap.org/copyright), [CSUCI's Broome Library
+Plaza description and layout](https://www.csuci.edu/office-departments/university-events/locations/athletic-outdoor-spaces.html),
 and [CSUCI campus-map help](https://www.csuci.edu/office-departments/its/help/campus-map-help.html).
 
-CSUCI's campus-map help says its map marks ADA pedestrian routes and power-assisted door entries.
-That information has not been transcribed into this app. When the existing accessibility
-preference is on, a route is returned only if every selected edge and both route endpoints are
-explicitly verified step-free. The current result is “Accessibility has not been verified.”
-
-Before enabling real routes, verify on site or from an authoritative, current exterior/site plan:
-(1) which Broome door is a public entrance for students, (2) its WGS84 coordinate, and (3) the
-continuous pedestrian connection from that door/plaza to a specific node on the mapped OSM path.
-Then review and include the connected OSM footway/path graph with ODbL attribution and an explicit
-coverage boundary. Record step-free evidence separately for every edge and endpoint intended for
-accessible routing; until then, accessibility remains unverified.
+The current Gateway Hall building marker is about 22.7 m from its nearest mapped footway, just
+beyond the 20 m snap limit; the marker itself correctly returns “Route unavailable.” GPS
+positions on nearby supported walkways within the coverage area can route to Broome. All OSM
+edges and the Broome approach endpoint have step-free status `UNKNOWN`; requesting an accessible
+route continues to report that accessibility is unverified. No route is called wheelchair-accessible.

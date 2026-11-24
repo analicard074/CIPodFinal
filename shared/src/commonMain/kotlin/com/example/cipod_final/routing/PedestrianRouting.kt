@@ -23,7 +23,10 @@ data class WalkwayEdge(
     val stepFree: StepFreeStatus = StepFreeStatus.UNKNOWN
 )
 
-/** A route endpoint must be surveyed as a pedestrian entrance, never inferred from a building center. */
+/**
+ * A route endpoint must be source-verified on a connected pedestrian approach, never inferred
+ * from a building center. It may mark the exterior entrance approach rather than the door threshold.
+ */
 data class VerifiedEntrance(
     val buildingId: String,
     val nodeId: String,
@@ -254,9 +257,4 @@ object PedestrianRoutePlanner {
     }
 
     private fun radians(degrees: Double): Double = degrees * kotlin.math.PI / 180.0
-}
-
-/** No production OSM graph or surveyed Broome entrance is currently checked into the repository. */
-object CampusPedestrianData {
-    val current: PedestrianNetwork? = null
 }

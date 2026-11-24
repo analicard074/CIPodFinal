@@ -15,18 +15,14 @@ data class CampusNavigationState(
     fun preview(id: String): CampusNavigationState =
         if (CampusBuildings.find(id) != null) copy(selectedBuildingId = id) else this
 
-    fun selectDestination(
-        id: String,
-        initialRoomId: String? = null,
-        initialFloorPlanId: String? = null
-    ): CampusNavigationState =
+    fun selectDestination(id: String): CampusNavigationState =
         if (CampusBuildings.find(id)?.coordinates != null) {
             val keepRoom = destinationId == id
             copy(
                 destinationId = id,
                 selectedBuildingId = id,
-                destinationRoomId = if (keepRoom) destinationRoomId else initialRoomId,
-                destinationFloorPlanId = if (keepRoom) destinationFloorPlanId else if (initialRoomId != null) initialFloorPlanId else null
+                destinationRoomId = if (keepRoom) destinationRoomId else null,
+                destinationFloorPlanId = if (keepRoom) destinationFloorPlanId else null
             )
         } else this
 

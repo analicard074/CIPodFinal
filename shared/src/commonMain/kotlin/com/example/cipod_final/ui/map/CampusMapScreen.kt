@@ -66,6 +66,7 @@ fun CampusMapScreen(
     modifier: Modifier = Modifier
 ) {
     var indoorBuildingId by remember { mutableStateOf<String?>(null) }
+    var openDirectoryOnIndoorOpen by remember { mutableStateOf(false) }
     var searchResultsVisible by remember { mutableStateOf(false) }
     var routeResult by remember { mutableStateOf<PedestrianRouteResult?>(null) }
     LaunchedEffect(navigation.destinationId, navigation.destinationRoomId, accessibilityEnabled) {
@@ -268,16 +269,25 @@ fun CampusMapScreen(
                     }
                     if (destination.id == "broome-library") {
                         val room = RoomDirectory.find(destination.id, navigation.destinationRoomId)
+                        val floorLabel = room?.floorPlanId?.let { floorId ->
+                            FloorPlanCatalog.forBuilding(destination.id)
+                                .firstOrNull { it.id == floorId }
+                                ?.label
+                                ?.substringBefore(" •")
+                        }
                         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp)) {
                             Card(elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)) {
                                 Column(Modifier.fillMaxWidth().padding(12.dp)) {
                                     Text(
-                                        room?.let { "Classroom ${it.number} • ${it.floorPlanId ?: "floor not assigned"}" }
+                                        room?.let { "Classroom ${it.number} • ${floorLabel ?: "Floor not assigned"}" }
                                             ?: "Choose a Broome room in Room Directory."
                                     )
                                     Row {
                                         TextButton(
-                                            onClick = { indoorBuildingId = destination.id }
+                                            onClick = {
+                                                openDirectoryOnIndoorOpen = true
+                                                indoorBuildingId = destination.id
+                                            }
                                         ) { Text(if (room == null) "Choose room" else "Open indoor plan") }
                                         TextButton(onClick = {
                                             routeResult = when (val start = locationSession.state.start) {
@@ -343,14 +353,7 @@ fun CampusMapScreen(
                 destination = navigation.destination,
                 onSelectDestination = {
                     focusManager.clearFocus()
-                    val initialRoom = if (building.id == "broome-library") {
-                        RoomDirectory.find("broome-library", "broome-library-2330")
-                    } else null
-                    val destinationState = navigation.selectDestination(
-                        id = building.id,
-                        initialRoomId = initialRoom?.id,
-                        initialFloorPlanId = initialRoom?.floorPlanId
-                    )
+                    val destinationState = navigation.selectDestination(building.id)
                     onNavigationChange(destinationState)
                     building.coordinates?.let { coordinates ->
                         mapState.setCameraPosition(
@@ -371,6 +374,7 @@ fun CampusMapScreen(
                 onViewFloorPlans = if (FloorPlanCatalog.forBuilding(building.id).isNotEmpty()) ({
                     focusManager.clearFocus()
                     locationSession.cancelRequest()
+                    openDirectoryOnIndoorOpen = false
                     indoorBuildingId = building.id
                 }) else null,
                 onClose = { onNavigationChange(navigation.copy(selectedBuildingId = null)) }
@@ -383,10 +387,14 @@ fun CampusMapScreen(
             editor = floorEditor,
             initialRoomId = navigation.destinationRoomId,
             initialFloorPlanId = navigation.destinationFloorPlanId,
+            openRoomDirectory = openDirectoryOnIndoorOpen,
             onRoomSelectionChange = { roomId, floorId ->
                 onNavigationChange(navigation.selectRoom(roomId, floorId))
             },
-            onBack = { indoorBuildingId = null }
+            onBack = {
+                indoorBuildingId = null
+                openDirectoryOnIndoorOpen = false
+            }
         )
     }
 }

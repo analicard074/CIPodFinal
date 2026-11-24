@@ -46,6 +46,7 @@ internal fun IndoorFloorViewer(
     editor: FloorPlanEditorState,
     initialRoomId: String?,
     initialFloorPlanId: String?,
+    openRoomDirectory: Boolean,
     onRoomSelectionChange: (String?, String?) -> Unit,
     onBack: () -> Unit
 ) {
@@ -60,7 +61,7 @@ internal fun IndoorFloorViewer(
     var loadAttempt by remember(plan.id) { mutableStateOf(0) }
     var showMarkers by remember { mutableStateOf(false) }
     var exportJson by remember { mutableStateOf<String?>(null) }
-    var showDirectory by remember(buildingId) { mutableStateOf(false) }
+    var showDirectory by remember(buildingId) { mutableStateOf(openRoomDirectory) }
     var directory by remember(buildingId) {
         mutableStateOf(RoomDirectoryState(buildingId, selectedRoomId = initialRoomId))
     }

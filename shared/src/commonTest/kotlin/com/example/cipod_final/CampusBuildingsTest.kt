@@ -42,6 +42,8 @@ class CampusBuildingsTest {
         val replaced = state.selectDestination("broome-library")
         assertEquals("broome-library", replaced.destination?.id)
         assertEquals("broome-library", replaced.selectedBuilding?.id)
+        assertNull(replaced.destinationRoomId)
+        assertNull(replaced.destinationFloorPlanId)
     }
 
     @Test fun browsingAndFilteringPreserveDestination() {
@@ -66,8 +68,40 @@ class CampusBuildingsTest {
         assertEquals(state, state.preview("missing"))
     }
 
-    @Test fun selectingSameDestinationIsIdempotent() {
-        val state = CampusNavigationState().selectDestination("broome-library")
-        assertEquals(state, state.selectDestination("broome-library"))
+    @Test fun selectingBroomeIsBuildingOnlyUntilStudentSelectsARoom() {
+        val selected = CampusNavigationState().selectDestination("broome-library")
+        assertEquals("broome-library", selected.destination?.id)
+        assertNull(selected.destinationRoomId)
+        assertNull(selected.destinationFloorPlanId)
+    }
+
+    @Test fun selectedRoomAndFloorSurviveReopeningTheSameDestination() {
+        val withRoom = CampusNavigationState().selectDestination("broome-library")
+            .selectRoom("broome-library-2330", "broome-library-second-floor-draft")
+
+        val reopened = withRoom.selectDestination("broome-library")
+
+        assertEquals("broome-library-2330", reopened.destinationRoomId)
+        assertEquals("broome-library-second-floor-draft", reopened.destinationFloorPlanId)
+    }
+
+    @Test fun clearingDestinationAlsoClearsRoomAndFloor() {
+        val cleared = CampusNavigationState().selectDestination("broome-library")
+            .selectRoom("broome-library-2330", "broome-library-second-floor-draft")
+            .clearDestination()
+
+        assertNull(cleared.destination)
+        assertNull(cleared.destinationRoomId)
+        assertNull(cleared.destinationFloorPlanId)
+    }
+
+    @Test fun switchingBuildingsDoesNotCarryOverSelectedRoomOrFloor() {
+        val switched = CampusNavigationState().selectDestination("broome-library")
+            .selectRoom("broome-library-2330", "broome-library-second-floor-draft")
+            .selectDestination("sierra-hall")
+
+        assertEquals("sierra-hall", switched.destination?.id)
+        assertNull(switched.destinationRoomId)
+        assertNull(switched.destinationFloorPlanId)
     }
 }
