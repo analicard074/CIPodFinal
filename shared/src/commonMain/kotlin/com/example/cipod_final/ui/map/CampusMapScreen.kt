@@ -279,7 +279,9 @@ fun CampusMapScreen(
                     },
                     routeResult = routeResult,
                     accessibilityEnabled = accessibilityEnabled,
-                    supportsBroomeActions = destination.id == "broome-library",
+                    supportsRouteActions = CampusPedestrianData.current.entrances.any {
+                        it.buildingId == destination.id
+                    },
                     onFindRoute = {
                         routeResult = when (val start = locationSession.state.start) {
                             is StartingPoint.Building -> PedestrianRoutePlanner.routeFromBuilding(
@@ -310,7 +312,7 @@ fun CampusMapScreen(
                         directionsExpanded = true
                         routeFitRevision++
                     },
-                    onChooseRoom = if (destination.id == "broome-library") ({
+                    onChooseRoom = if (RoomDirectory.search(destination.id).isNotEmpty()) ({
                         openDirectoryOnIndoorOpen = true
                         indoorBuildingId = destination.id
                     }) else null,

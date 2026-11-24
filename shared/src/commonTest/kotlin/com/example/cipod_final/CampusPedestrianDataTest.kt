@@ -44,6 +44,75 @@ class CampusPedestrianDataTest {
     }
 
     @Test
+    fun sierraCandidatesMatchOnlyExistingFootwayApproachNodesAndKeepDuplicateSourceIdsDistinct() {
+        val candidates = CampusPedestrianData.sierraEntranceCandidates
+        assertEquals(6, candidates.size)
+        assertEquals(6, candidates.map { it.localId }.distinct().size)
+        assertEquals(2, candidates.count { it.recordId == "sierra-northwest-entrance" })
+
+        val expectedMeters = listOf(0.69, 0.11, 0.41, 10.19, 11.33, 3.70)
+        candidates.zip(expectedMeters).forEach { (candidate, expected) ->
+            assertEquals(expected, candidate.nearestWalkwayMeters, 0.02)
+            assertEquals(
+                expected,
+                PedestrianRoutePlanner.nearestMappedWalkwayDistance(candidate.point, network)!!,
+                0.02
+            )
+        }
+        assertEquals(
+            listOf("osm-node-12599537566", "osm-node-12072193333", "osm-node-6365428169"),
+            candidates.mapNotNull { it.approachNodeId }
+        )
+        val enabledNodeIds = network.entrances.filter { it.buildingId == "sierra-hall" }.map { it.nodeId }
+        assertEquals(candidates.mapNotNull { it.approachNodeId }.toSet(), enabledNodeIds.toSet())
+        assertTrue(network.entrances.filter { it.buildingId == "sierra-hall" }
+            .all { it.stepFree == StepFreeStatus.UNKNOWN })
+    }
+
+    @Test
+    fun supportedSierraApproachesAreConnectedAndRouteFromCampusWalkways() {
+        val starts = listOf(
+            reading(34.1649277, -119.0448354), // Gateway-area supported footway
+            reading(34.162230579435274, -119.04452970944918), // Sierra-area footway
+            reading(34.162577, -119.041431) // Broome plaza footway
+        )
+        val enabledNodes = network.entrances.filter { it.buildingId == "sierra-hall" }.map { it.nodeId }.toSet()
+        starts.forEach { start ->
+            val route = assertIs<PedestrianRouteResult.Available>(
+                PedestrianRoutePlanner.route(start, now, "sierra-hall", network)
+            )
+            val endpoint = network.nodes.single { it.point == route.points.last() }
+            assertTrue(endpoint.id in enabledNodes)
+            assertTrue(route.distanceMeters > 0.0)
+            assertEquals(false, route.accessibilityVerified)
+        }
+    }
+
+    @Test
+    fun unsupportedSierraCandidatesDoNotBecomeRouteEndpoints() {
+        assertTrue(CampusPedestrianData.sierraEntranceCandidates.filter { it.approachNodeId == null }
+            .all { candidate -> network.entrances.none {
+                it.buildingId == "sierra-hall" && network.nodes.single { node -> node.id == it.nodeId }.point == candidate.point
+            } })
+        assertEquals(
+            PedestrianRouteResult.Unavailable(PedestrianRouteResult.Reason.ENTRANCE_NOT_VERIFIED),
+            PedestrianRoutePlanner.route(reading(34.1649277, -119.0448354), now, "unverified-building", network)
+        )
+    }
+
+    @Test
+    fun sierraRouteGeoJsonEndsAtAReviewedOsmApproachNode() {
+        val route = assertIs<PedestrianRouteResult.Available>(
+            PedestrianRoutePlanner.route(reading(34.1649277, -119.0448354), now, "sierra-hall", network)
+        )
+        val last = route.points.last()
+        val geoJson = routeGeoJson(route.points)
+        assertTrue(geoJson.contains("\"type\":\"LineString\""))
+        assertTrue(geoJson.contains("[${last.longitude},${last.latitude}]") ||
+            geoJson.contains("[${last.longitude},${last.latitude},"))
+    }
+
+    @Test
     fun suppliedPointIsSnappedToTheMappedPlazaFootwayWithoutInventingAConnector() {
         val start = reading(34.162577, -119.041431)
         val route = assertIs<PedestrianRouteResult.Available>(

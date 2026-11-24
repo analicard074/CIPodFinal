@@ -7,6 +7,29 @@ package com.example.cipod_final.routing
  * © OpenStreetMap contributors, available under ODbL 1.0. See docs/maps/README.md.
  */
 object CampusPedestrianData {
+    /**
+     * Candidate records supplied by the project owner from a partner's Firebase export.
+     * recordId intentionally retains the duplicate northwest ID; localId is unique for review.
+     * A non-null approachNodeId means the candidate aligns with an existing connected OSM
+     * footway and routes end at that existing map node, not at an asserted door threshold.
+     */
+    data class SierraEntranceCandidate(
+        val localId: String,
+        val recordId: String,
+        val point: GeoPoint,
+        val nearestWalkwayMeters: Double,
+        val approachNodeId: String?
+    )
+
+    val sierraEntranceCandidates = listOf(
+        SierraEntranceCandidate("sierra-ne-1", "sierra-northeast-entrance", GeoPoint(34.162461134391, -119.044623150570), 0.69, "osm-node-12599537566"),
+        SierraEntranceCandidate("sierra-e-1", "sierra-east-entrance", GeoPoint(34.1622400835051, -119.044337984643), 0.11, "osm-node-12072193333"),
+        SierraEntranceCandidate("sierra-se-1", "sierra-southeast-entrance", GeoPoint(34.162114972336, -119.044491535522), 0.41, "osm-node-6365428169"),
+        SierraEntranceCandidate("sierra-sw-1", "sierra-southwest-entrance", GeoPoint(34.162088005885, -119.044971507981), 10.19, null),
+        SierraEntranceCandidate("sierra-nw-1", "sierra-northwest-entrance", GeoPoint(34.1621906530737, -119.045005035591), 11.33, null),
+        SierraEntranceCandidate("sierra-nw-2", "sierra-northwest-entrance", GeoPoint(34.1623498946867, -119.045045268713), 3.70, null)
+    )
+
     private val nodes = listOf(
         WalkwayNode("osm-node-95402084", GeoPoint(34.1621337, -119.0436933)),
         WalkwayNode("osm-node-95402085", GeoPoint(34.1618562, -119.0435827)),
@@ -1568,9 +1591,27 @@ object CampusPedestrianData {
                 nodeId = "osm-node-10880735696",
                 verificationSource = "OSM node 10880735696 joins Broome Library outline way 461618288, concrete footway 817294745, covered footway 1170524631, and canopy roof feature 712128842; CSUCI identifies Broome Library Plaza as situated at the library entrance. This is the exterior entrance approach, not a surveyed door threshold.",
                 stepFree = StepFreeStatus.UNKNOWN
+            ),
+            VerifiedEntrance(
+                buildingId = "sierra-hall",
+                nodeId = "osm-node-12599537566",
+                verificationSource = "Partner-supplied Sierra northeast entrance candidate sierra-northeast-entrance is 0.69 m from OSM footway 1361026268; route endpoint is existing connected footway node 12599537566 (2.81 m from candidate). Approach only; public door threshold is not independently verified.",
+                stepFree = StepFreeStatus.UNKNOWN
+            ),
+            VerifiedEntrance(
+                buildingId = "sierra-hall",
+                nodeId = "osm-node-12072193333",
+                verificationSource = "Partner-supplied Sierra east entrance candidate sierra-east-entrance is 0.11 m from OSM footway 1303557656; route endpoint is existing connected footway node 12072193333 (0.48 m from candidate). Strongest candidate-to-network match. Approach only; public door threshold is not independently verified.",
+                stepFree = StepFreeStatus.UNKNOWN
+            ),
+            VerifiedEntrance(
+                buildingId = "sierra-hall",
+                nodeId = "osm-node-6365428169",
+                verificationSource = "Partner-supplied Sierra southeast entrance candidate sierra-southeast-entrance is 0.41 m from OSM footway 1361026267/955221403; route endpoint is existing connected footway node 6365428169 (0.98 m from candidate). Approach only; public door threshold is not independently verified.",
+                stepFree = StepFreeStatus.UNKNOWN
             )
         ),
-        sourceAttribution = "OpenStreetMap contributors; highway=footway/path/pedestrian geometry from https://api.openstreetmap.org/api/0.6/map?bbox=-119.047,34.161,-119.039,34.167, reviewed 2026-11-24; ODbL 1.0. Broome approach corroboration: https://www.csuci.edu/office-departments/university-events/locations/athletic-outdoor-spaces.html",
+        sourceAttribution = "OpenStreetMap contributors; highway=footway/path/pedestrian geometry from https://api.openstreetmap.org/api/0.6/map?bbox=-119.047,34.161,-119.039,34.167, reviewed 2026-11-24; ODbL 1.0. Broome approach corroboration: https://www.csuci.edu/office-departments/university-events/locations/athletic-outdoor-spaces.html. Sierra candidate coordinates supplied by project owner from partner Firebase records; CSUCI campus maps identify Sierra Hall but do not independently document these doors. Only existing OSM footway approach nodes are used as provisional endpoints.",
         coverageBoundary = listOf(
             GeoPoint(34.1583, -119.0473),
             GeoPoint(34.1583, -119.0383),

@@ -457,8 +457,31 @@ OSM geometry is © OpenStreetMap contributors under ODbL 1.0. See the [OSM area 
 Plaza description and layout](https://www.csuci.edu/office-departments/university-events/locations/athletic-outdoor-spaces.html),
 and [CSUCI campus-map help](https://www.csuci.edu/office-departments/its/help/campus-map-help.html).
 
-The current Gateway Hall building marker is about 22.7 m from its nearest mapped footway, just
-beyond the 20 m snap limit; the marker itself correctly returns “Route unavailable.” GPS
-positions on nearby supported walkways within the coverage area can route to Broome. All OSM
-edges and the Broome approach endpoint have step-free status `UNKNOWN`; requesting an accessible
-route continues to report that accessibility is unverified. No route is called wheelchair-accessible.
+Sierra Hall routing uses the same OSM component and planner. Six entrance-candidate coordinates
+were supplied by the project owner from a partner's Firebase records; Firebase was not accessed
+or changed. The public [CSUCI campus map](https://maps.csuci.edu/) and
+[Sierra Hall project page](https://www.csuci.edu/office-departments/fs/pdc/sierra-hall.html) identify the building but do
+not mark these individual public doors. Candidate coordinates are therefore not claimed as
+independently verified door thresholds.
+
+Three candidates align almost exactly with connected OSM footways and are enabled as provisional
+exterior approach destinations. Routes end at existing OSM footway nodes, avoiding any invented
+connector. The northeast candidate is 0.69 m from way 1361026268; its route endpoint is node
+12599537566, 2.81 m from the supplied point. The east candidate is 0.11 m from way 1303557656;
+node 12072193333 is 0.48 m away and is the strongest candidate-to-network match. The southeast
+candidate is 0.41 m from ways 1361026267/955221403; node 6365428169 is 0.98 m away. These are
+connected approach locations, not door-location claims.
+
+The southwest candidate is 10.19 m from its nearest footway (node 6038371858 is 10.79 m away);
+the first northwest record is 11.33 m from its nearest footway; the second northwest record is
+3.70 m from its nearest footway. None is enabled because connecting those candidate points to the
+graph would require an unverified off-network segment. The two northwest records share the source
+ID `sierra-northwest-entrance` despite different coordinates. The local review assigns distinct
+temporary IDs and retains both source IDs for traceability; Firebase remains unchanged.
+
+The Gateway Hall building marker is about 22.7 m from its nearest mapped footway, just beyond the
+20 m snap limit; that marker itself correctly returns “Route unavailable.” GPS positions on
+supported walkways within the coverage area can now route to either Broome Library or Sierra Hall.
+All OSM edges and both buildings' approach endpoints have step-free status `UNKNOWN`; requesting
+an accessible route continues to report that accessibility is unverified. No route is called
+wheelchair-accessible.

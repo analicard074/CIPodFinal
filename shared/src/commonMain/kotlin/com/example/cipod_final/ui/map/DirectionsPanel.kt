@@ -29,7 +29,7 @@ internal fun DirectionsPanel(
     roomLabel: String?,
     routeResult: PedestrianRouteResult?,
     accessibilityEnabled: Boolean,
-    supportsBroomeActions: Boolean,
+    supportsRouteActions: Boolean,
     onFindRoute: () -> Unit,
     onChooseRoom: (() -> Unit)?,
     onOpenIndoorPlan: (() -> Unit)?,
@@ -78,7 +78,7 @@ internal fun DirectionsPanel(
                 }
 
                 Text(
-                    routeMessage(routeResult, accessibilityEnabled, supportsBroomeActions),
+                    routeMessage(routeResult, accessibilityEnabled, supportsRouteActions),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(top = 4.dp)
                 )
@@ -87,7 +87,7 @@ internal fun DirectionsPanel(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    if (supportsBroomeActions) {
+                    if (supportsRouteActions) {
                         TextButton(onClick = onFindRoute) { Text("Find walking route") }
                         onChooseRoom?.let { TextButton(onClick = it) { Text("Choose room") } }
                     }
@@ -107,7 +107,7 @@ internal fun DirectionsPanel(
 private fun routeMessage(
     result: PedestrianRouteResult?,
     accessibilityEnabled: Boolean,
-    supportsBroomeActions: Boolean
+    supportsRouteActions: Boolean
 ): String = when (result) {
     is PedestrianRouteResult.Available -> if (result.accessibilityVerified) {
         "Step-free route verified • ${result.distanceMeters.toInt()} m"
@@ -132,7 +132,7 @@ private fun routeMessage(
     null -> when {
         accessibilityEnabled ->
             "Accessibility has not been verified for the walkway network and entrance."
-        supportsBroomeActions -> "Choose Find walking route to check this route."
-        else -> "Outdoor walking routes are currently supported only to Broome Library."
+        supportsRouteActions -> "Choose Find walking route to check this route."
+        else -> "Outdoor walking route data is not available for this building."
     }
 }

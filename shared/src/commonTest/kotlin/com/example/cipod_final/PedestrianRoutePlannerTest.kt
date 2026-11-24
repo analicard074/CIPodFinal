@@ -51,6 +51,36 @@ class PedestrianRoutePlannerTest {
     }
 
     @Test
+    fun choosesShortestConnectedEntranceEvenWhenAnotherEntranceIsGeographicallyCloser() {
+        val multipleEntrances = network().copy(
+            nodes = listOf(
+                WalkwayNode("a", GeoPoint(34.0, -119.0)),
+                WalkwayNode("b", GeoPoint(34.0001, -119.0)),
+                WalkwayNode("e", GeoPoint(34.0001, -118.9997)),
+                WalkwayNode("f", GeoPoint(34.0001, -119.0003)),
+                WalkwayNode("c", GeoPoint(34.00001, -119.00001)),
+                WalkwayNode("d", GeoPoint(34.0001, -118.9999))
+            ),
+            edges = listOf(
+                WalkwayEdge("ab", "a", "b"),
+                WalkwayEdge("be", "b", "e"),
+                WalkwayEdge("ef", "e", "f"),
+                WalkwayEdge("fc", "f", "c"),
+                WalkwayEdge("bd", "b", "d")
+            ),
+            entrances = listOf(
+                VerifiedEntrance("sierra-hall", "c", "geographically close but longer connected path"),
+                VerifiedEntrance("sierra-hall", "d", "farther straight-line but shorter connected path")
+            )
+        )
+        val route = assertIs<PedestrianRouteResult.Available>(
+            PedestrianRoutePlanner.route(reading, now, "sierra-hall", multipleEntrances)
+        )
+        assertEquals(34.0001, route.points.last().latitude, 0.000001)
+        assertEquals(-118.9999, route.points.last().longitude, 0.000001)
+    }
+
+    @Test
     fun staleAndApproximateLocationsAreRejectedBeforeSnapping() {
         assertEquals(
             PedestrianRouteResult.Unavailable(PedestrianRouteResult.Reason.LOCATION_NOT_USABLE),

@@ -80,6 +80,10 @@ sealed interface PedestrianRouteResult {
 object PedestrianRoutePlanner {
     const val maxSnapDistanceMeters = 20.0
 
+    /** Distance to the closest mapped line segment, for auditing endpoints against the graph. */
+    fun nearestMappedWalkwayDistance(point: GeoPoint, network: PedestrianNetwork): Double? =
+        nearestEdge(point, network.edges, network.nodes.associateBy { it.id })?.distance
+
     fun route(
         reading: LocationReading,
         nowMillis: Long,
@@ -93,9 +97,14 @@ object PedestrianRoutePlanner {
         if (network == null || !network.isUsable) {
             return PedestrianRouteResult.Unavailable(if (accessibilityRequested) PedestrianRouteResult.Reason.ACCESSIBILITY_NOT_VERIFIED else PedestrianRouteResult.Reason.NETWORK_NOT_VERIFIED)
         }
-        val entrance = network.entrances.firstOrNull { it.buildingId == destinationBuildingId }
-            ?: return PedestrianRouteResult.Unavailable(PedestrianRouteResult.Reason.ENTRANCE_NOT_VERIFIED)
-        if (accessibilityRequested && entrance.stepFree != StepFreeStatus.VERIFIED_STEP_FREE) {
+        val destinationEntrances = network.entrances.filter { it.buildingId == destinationBuildingId }
+        if (destinationEntrances.isEmpty()) {
+            return PedestrianRouteResult.Unavailable(PedestrianRouteResult.Reason.ENTRANCE_NOT_VERIFIED)
+        }
+        val usableEntrances = destinationEntrances.filter {
+            !accessibilityRequested || it.stepFree == StepFreeStatus.VERIFIED_STEP_FREE
+        }
+        if (usableEntrances.isEmpty()) {
             return PedestrianRouteResult.Unavailable(PedestrianRouteResult.Reason.ACCESSIBILITY_NOT_VERIFIED)
         }
 
@@ -133,14 +142,18 @@ object PedestrianRoutePlanner {
         adjacency.getOrPut(edge.from) { mutableListOf() }.add(startId to meters(snap.point, a))
         adjacency.getOrPut(edge.to) { mutableListOf() }.add(startId to meters(snap.point, b))
 
-        val target = entrance.nodeId
+        val targets = usableEntrances.mapTo(mutableSetOf()) { it.nodeId }
         val distances = mutableMapOf(startId to 0.0)
         val previous = mutableMapOf<String, String>()
         val unvisited = mutableSetOf(startId)
+        var target: String? = null
         while (unvisited.isNotEmpty()) {
             val current = unvisited.minByOrNull { distances[it] ?: Double.POSITIVE_INFINITY } ?: break
             unvisited.remove(current)
-            if (current == target) break
+            if (current in targets) {
+                target = current
+                break
+            }
             for ((next, cost) in adjacency[current].orEmpty()) {
                 val candidate = (distances[current] ?: Double.POSITIVE_INFINITY) + cost
                 if (candidate < (distances[next] ?: Double.POSITIVE_INFINITY)) {
@@ -150,11 +163,12 @@ object PedestrianRoutePlanner {
                 }
             }
         }
-        val distance = distances[target] ?: return PedestrianRouteResult.Unavailable(
+        val chosenTarget = target ?: return PedestrianRouteResult.Unavailable(
             if (accessibilityRequested && network.edges.any { it.stepFree == StepFreeStatus.UNKNOWN }) PedestrianRouteResult.Reason.ACCESSIBILITY_NOT_VERIFIED
             else PedestrianRouteResult.Reason.NO_CONNECTED_ROUTE
         )
-        val pathIds = mutableListOf(target)
+        val distance = distances.getValue(chosenTarget)
+        val pathIds = mutableListOf(chosenTarget)
         while (pathIds.last() != startId) pathIds += previous[pathIds.last()] ?: return PedestrianRouteResult.Unavailable(PedestrianRouteResult.Reason.NO_CONNECTED_ROUTE)
         val points = pathIds.asReversed().mapNotNull { id -> if (id == startId) snap.point else nodes[id]?.point }
         return PedestrianRouteResult.Available(points, distance, accessibilityRequested)
@@ -170,14 +184,16 @@ object PedestrianRoutePlanner {
         if (network == null || !network.isUsable) {
             return PedestrianRouteResult.Unavailable(if (accessibilityRequested) PedestrianRouteResult.Reason.ACCESSIBILITY_NOT_VERIFIED else PedestrianRouteResult.Reason.NETWORK_NOT_VERIFIED)
         }
-        val start = network.entrances.firstOrNull { it.buildingId == startBuildingId }
-            ?: return PedestrianRouteResult.Unavailable(PedestrianRouteResult.Reason.ENTRANCE_NOT_VERIFIED)
-        val destination = network.entrances.firstOrNull { it.buildingId == destinationBuildingId }
-            ?: return PedestrianRouteResult.Unavailable(PedestrianRouteResult.Reason.ENTRANCE_NOT_VERIFIED)
-        if (accessibilityRequested &&
-            (start.stepFree != StepFreeStatus.VERIFIED_STEP_FREE ||
-                destination.stepFree != StepFreeStatus.VERIFIED_STEP_FREE)
-        ) return PedestrianRouteResult.Unavailable(PedestrianRouteResult.Reason.ACCESSIBILITY_NOT_VERIFIED)
+        val starts = network.entrances.filter { it.buildingId == startBuildingId }
+        val destinations = network.entrances.filter { it.buildingId == destinationBuildingId }
+        if (starts.isEmpty() || destinations.isEmpty()) {
+            return PedestrianRouteResult.Unavailable(PedestrianRouteResult.Reason.ENTRANCE_NOT_VERIFIED)
+        }
+        val usableStarts = starts.filter { !accessibilityRequested || it.stepFree == StepFreeStatus.VERIFIED_STEP_FREE }
+        val usableDestinations = destinations.filter { !accessibilityRequested || it.stepFree == StepFreeStatus.VERIFIED_STEP_FREE }
+        if (usableStarts.isEmpty() || usableDestinations.isEmpty()) {
+            return PedestrianRouteResult.Unavailable(PedestrianRouteResult.Reason.ACCESSIBILITY_NOT_VERIFIED)
+        }
 
         val nodes = network.nodes.associateBy { it.id }
         val usableEdges = network.edges.filter {
@@ -191,7 +207,11 @@ object PedestrianRoutePlanner {
             adjacency.getOrPut(edge.from) { mutableListOf() }.add(edge.to to length)
             adjacency.getOrPut(edge.to) { mutableListOf() }.add(edge.from to length)
         }
-        val path = shortestPath(start.nodeId, destination.nodeId, adjacency)
+        val path = usableStarts.flatMap { start ->
+            usableDestinations.mapNotNull { destination ->
+                shortestPath(start.nodeId, destination.nodeId, adjacency)
+            }
+        }.minByOrNull { it.second }
             ?: return PedestrianRouteResult.Unavailable(
                 if (accessibilityRequested && network.edges.any { it.stepFree == StepFreeStatus.UNKNOWN })
                     PedestrianRouteResult.Reason.ACCESSIBILITY_NOT_VERIFIED
