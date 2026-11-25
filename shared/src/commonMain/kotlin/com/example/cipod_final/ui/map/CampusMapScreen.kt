@@ -24,7 +24,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
@@ -40,6 +39,7 @@ import com.example.cipod_final.location.LocationSession
 import com.example.cipod_final.location.LocationStatus
 import com.example.cipod_final.location.StartingPoint
 import com.example.cipod_final.location.rememberLocationController
+import com.example.cipod_final.ui.ScreenTitle
 import com.example.cipod_final.ui.indoor.RoomDirectoryPanel
 import com.example.cipod_final.ui.indoor.IndoorFloorViewer
 import org.maplibre.compose.camera.CameraFit
@@ -176,13 +176,7 @@ fun CampusMapScreen(
                 .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                "Explore CI",
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.onSurface,
-                fontSize = 20.sp,
-                textAlign = TextAlign.Center,
-            )
+            ScreenTitle("Explore CI")
         }
         StartingPointControls(
             session = locationSession,

@@ -26,7 +26,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -37,6 +36,7 @@ import com.example.cipod_final.data.Club
 import com.example.cipod_final.data.firestore.SavedMyPod
 import com.example.cipod_final.indoor.FloorPlanEditorViewModel
 import com.example.cipod_final.location.LocationSession
+import com.example.cipod_final.ui.ScreenTitle
 import com.example.cipod_final.ui.map.BuildingSearchBar
 import com.example.cipod_final.ui.map.CampusMapScreen
 import kotlinx.coroutines.CancellationException
@@ -298,14 +298,11 @@ fun NaviBar(
                     onAccessibilityChange = { accessibilityEnabled = it }
                 )
 
-                else -> Text(
+                else -> ScreenTitle(
                     text = selected,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(24.dp),
-                    color = Color.Black,
-                    fontSize = 20.sp,
-                    textAlign = TextAlign.Center
                 )
             }
         }

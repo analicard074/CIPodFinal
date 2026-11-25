@@ -31,15 +31,21 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.example.cipod_final.buildings.CampusBuilding
+import com.example.cipod_final.ui.ScreenTitle
+
+@Composable
+internal fun mapSearchFieldColor(): Color = lerp(
+    ButtonDefaults.elevatedButtonColors().containerColor,
+    Color.White,
+    0.45f,
+)
 
 @Composable
 internal fun BuildingSearchBar(
@@ -63,25 +69,14 @@ internal fun BuildingSearchBar(
                 .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                "Resources",
-                modifier = Modifier
-                    .fillMaxWidth(),
-                color = Color.Black,
-                fontSize = 20.sp,
-                textAlign = TextAlign.Center,
-            )
+            ScreenTitle("Resources")
         }
         Column(
             Modifier
                 .fillMaxWidth()
                 .padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
         ) {
-            val searchFieldColor = lerp(
-                ButtonDefaults.elevatedButtonColors().containerColor,
-                Color.White,
-                0.45f,
-            )
+            val searchFieldColor = mapSearchFieldColor()
             val showResults = query.isNotBlank() && resultsExpanded && fieldSize.width > 0
             LaunchedEffect(showResults) {
                 onResultsVisibilityChange(showResults)

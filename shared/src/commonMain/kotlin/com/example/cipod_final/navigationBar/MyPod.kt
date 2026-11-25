@@ -51,7 +51,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import cipodfinal.shared.generated.resources.Res
 import cipodfinal.shared.generated.resources.accessibility
 import cipodfinal.shared.generated.resources.directions
@@ -59,6 +58,7 @@ import cipodfinal.shared.generated.resources.dolphin_squad
 import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.data.ClassSession
 import com.example.cipod_final.data.Club
+import com.example.cipod_final.ui.ScreenTitle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.withTimeout
@@ -94,15 +94,13 @@ fun MyPodScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .heightIn(min = 48.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(
+            ScreenTitle(
                 text = "Welcome to MyPod",
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.Black,
-                fontSize = 20.sp,
-                textAlign = TextAlign.Center
+                modifier = Modifier.padding(horizontal = 64.dp),
             )
             Switch(
                 checked = accessibilityEnabled,
