@@ -171,7 +171,6 @@ private fun RouteEndpointRow(
                         Text(
                             name ?: if (onSelectLocation != null) "Choose starting point" else "Choose destination",
                             style = MaterialTheme.typography.bodyMedium,
-                            minLines = 2,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
