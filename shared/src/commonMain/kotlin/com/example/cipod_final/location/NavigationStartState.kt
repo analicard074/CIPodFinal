@@ -1,6 +1,8 @@
 package com.example.cipod_final.location
 
+import com.example.cipod_final.buildings.BuildingCoordinates
 import com.example.cipod_final.buildings.CampusBuildings
+import com.example.cipod_final.routing.distanceMeters
 
 sealed interface StartingPoint {
     data class Building(val buildingId: String) : StartingPoint
@@ -40,11 +42,19 @@ data class NavigationStartState(
         } else expire(nowMillis)
     }
 
-    fun chooseBuilding(id: String): NavigationStartState =
-        if (CampusBuildings.find(id)?.coordinates == null) this else copy(
-            start = StartingPoint.Building(id), reading = null,
-            status = LocationStatus.Idle, requestId = requestId + 1
+    fun chooseBuilding(id: String): NavigationStartState {
+        if (CampusBuildings.find(id)?.coordinates == null) return this
+        val nextStatus = when {
+            !busy -> status
+            reading != null -> LocationStatus.Ready
+            else -> LocationStatus.Idle
+        }
+        return copy(
+            start = StartingPoint.Building(id),
+            status = nextStatus,
+            requestId = requestId + 1
         )
+    }
 
     fun clear(): NavigationStartState = NavigationStartState(requestId = requestId + 1)
 
@@ -58,4 +68,26 @@ data class NavigationStartState(
             start = start.takeUnless { it is StartingPoint.Device }, status = LocationStatus.Stale
         ) else this
     }
+}
+
+/** A weak campus fix may select a building reference point, never a precise device start. */
+internal fun NavigationStartState.withNearbyBuildingFallback(nowMillis: Long): NavigationStartState {
+    if (start is StartingPoint.Building) return this
+    val snapshot = reading ?: return this
+    if (LocationQualityPolicy.evaluate(snapshot, nowMillis) != LocationQuality.Approximate ||
+        snapshot.accuracyMeters > 250) return this
+    val approximatePoint = BuildingCoordinates(snapshot.latitude, snapshot.longitude)
+    var nearestId: String? = null
+    var nearestDistance = Double.POSITIVE_INFINITY
+    for (building in CampusBuildings.all) {
+        val coordinates = building.coordinates ?: continue
+        val distance = distanceMeters(approximatePoint, coordinates)
+        if (distance < nearestDistance) {
+            nearestId = building.id
+            nearestDistance = distance
+        }
+    }
+    val buildingId = nearestId ?: return this
+    if (nearestDistance > 250) return this
+    return chooseBuilding(buildingId).copy(reading = null, status = LocationStatus.Idle)
 }

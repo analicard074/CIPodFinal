@@ -1,7 +1,7 @@
 package com.example.cipod_final.ui.map
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,18 +10,20 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,22 +34,22 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.cipod_final.buildings.CampusBuilding
 import com.example.cipod_final.buildings.CampusBuildings
-import com.example.cipod_final.location.StartingPoint
+import com.example.cipod_final.location.LocationController
 import com.example.cipod_final.location.LocationQuality
 import com.example.cipod_final.location.LocationQualityPolicy
-import com.example.cipod_final.location.locationNowMillis
-import com.example.cipod_final.location.LocationController
 import com.example.cipod_final.location.LocationSession
 import com.example.cipod_final.location.LocationStatus
+import com.example.cipod_final.location.StartingPoint
+import com.example.cipod_final.location.locationNowMillis
 
 @Composable
 internal fun StartingPointControls(
@@ -55,8 +57,29 @@ internal fun StartingPointControls(
     controller: LocationController,
     destination: CampusBuilding?,
     onDestinationChange: (CampusBuilding?) -> Unit,
+    destinationRoomNumber: String? = null,
+    startRoomNumber: String? = null,
+    onClearRoomStart: () -> Unit = {},
 ) {
     val state = session.state
+    val showLocationFeedback = (session.locationFeedbackRequested || state.start == null) && startRoomNumber == null
+    val showLocationProgress = showLocationFeedback && state.busy &&
+        (session.isRequestingLocation || state.start == null)
+    val locationFailed = when (state.status) {
+        LocationStatus.Denied, LocationStatus.ServicesDisabled, LocationStatus.Unavailable,
+        LocationStatus.TimedOut, LocationStatus.Stale -> true
+        LocationStatus.Ready -> state.reading?.let {
+            LocationQualityPolicy.evaluate(it, locationNowMillis()) != LocationQuality.Usable
+        } == true
+        else -> false
+    }
+    val needsBuilding = showLocationFeedback && state.start == null && !state.busy && locationFailed
+    val destinationName = when {
+        destination == null -> null
+        destinationRoomNumber == null -> destination.name
+        destination.id == "broome-library" -> "Broome $destinationRoomNumber"
+        else -> "${destination.name} $destinationRoomNumber"
+    }
     val focusManager = LocalFocusManager.current
     Column(
         modifier = Modifier
@@ -74,16 +97,24 @@ internal fun StartingPointControls(
             RouteEndpointRow(
                 modifier = Modifier.weight(1f),
                 label = "From",
-                name = when (val start = state.start) {
+                requestBuildingSelection = needsBuilding,
+                name = startRoomNumber?.let { "Broome $it" } ?: when (val start = state.start) {
                     is StartingPoint.Building -> CampusBuildings.find(start.buildingId)?.name
                     is StartingPoint.Device -> "My location"
                     null -> null
                 },
-                onClear = session::clear,
-                onSelectBuilding = { session.chooseBuilding(it.id) },
+                onClear = {
+                    session.clear()
+                    onClearRoomStart()
+                },
+                onSelectBuilding = {
+                    onClearRoomStart()
+                    session.chooseBuilding(it.id)
+                },
                 onSelectLocation = {
                     focusManager.clearFocus()
-                    session.requestLocation(controller)
+                    onClearRoomStart()
+                    session.selectCurrentLocation(controller)
                 },
             )
             Text(
@@ -94,22 +125,27 @@ internal fun StartingPointControls(
             RouteEndpointRow(
                 modifier = Modifier.weight(1f),
                 label = "To",
-                name = destination?.name,
+                name = destinationName,
                 onClear = { onDestinationChange(null) },
                 onSelectBuilding = { onDestinationChange(it) },
             )
         }
-        if (state.busy) TextButton(onClick = session::cancelRequest) { Text("Cancel") }
-        val message = when (state.status) {
-            LocationStatus.Idle -> null
-            LocationStatus.RequestingPermission -> "Waiting for foreground location permission..."
-            LocationStatus.Locating -> "Getting location..."
+        if (showLocationProgress) {
+            TextButton(onClick = session::cancelRequest) { Text("Cancel") }
+        }
+        val message = if (!showLocationFeedback) null else when (state.status) {
+            LocationStatus.Idle -> session.fallbackBuildingId?.let { id ->
+                CampusBuildings.find(id)?.let { "Location signal is weak. Starting from ${it.name}. You can change the From building." }
+            }
+            LocationStatus.RequestingPermission -> if (showLocationProgress) "Waiting for foreground location permission..." else null
+            LocationStatus.Locating -> if (showLocationProgress) "Getting location..." else null
             LocationStatus.Ready -> {
                 val currentLocation = state.reading
                 when {
                     currentLocation != null &&
                         CampusMapConfig.isOutsideCampus(currentLocation.latitude, currentLocation.longitude) ->
                         "You are outside of campus."
+                    needsBuilding -> "Location signal is weak. Choose your starting building."
                     else -> null
                 }
             }
@@ -147,12 +183,20 @@ private fun RouteEndpointRow(
     onSelectBuilding: (CampusBuilding) -> Unit,
     onSelectLocation: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    requestBuildingSelection: Boolean = false,
 ) {
     var expanded by remember { mutableStateOf(false) }
+    var promptedForBuilding by remember(name) { mutableStateOf(false) }
+    LaunchedEffect(requestBuildingSelection) {
+        if (requestBuildingSelection && !promptedForBuilding) {
+            expanded = true
+            promptedForBuilding = true
+        }
+    }
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surface,
+        color = mapSearchFieldColor(),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -165,13 +209,11 @@ private fun RouteEndpointRow(
                         Text(
                             label,
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (onSelectLocation != null) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.tertiary,
+                            color = MaterialTheme.colorScheme.primary,
                         )
                         Text(
                             name ?: if (onSelectLocation != null) "Choose starting point" else "Choose destination",
                             style = MaterialTheme.typography.bodyMedium,
-                            minLines = 2,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -181,13 +223,19 @@ private fun RouteEndpointRow(
                     onSelectLocation?.let { selectLocation ->
                         DropdownMenuItem(
                             text = { Text("My location") },
-                            onClick = { expanded = false; selectLocation() },
+                            onClick = {
+                                expanded = false
+                                selectLocation()
+                            },
                         )
                     }
                     CampusBuildings.all.filter { it.coordinates != null }.forEach { building ->
                         DropdownMenuItem(
                             text = { Text(building.name) },
-                            onClick = { expanded = false; onSelectBuilding(building) },
+                            onClick = {
+                                expanded = false
+                                onSelectBuilding(building)
+                            },
                         )
                     }
                 }
@@ -195,7 +243,7 @@ private fun RouteEndpointRow(
             if (name != null) {
                 IconButton(
                     onClick = onClear,
-                    modifier = Modifier.semantics {
+                    modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp).semantics {
                         contentDescription = if (onSelectLocation != null) "Clear starting point" else "Clear destination"
                     },
                 ) {
@@ -207,7 +255,7 @@ private fun RouteEndpointRow(
 }
 
 @Composable
-internal fun MyLocationMapButton(session: LocationSession, controller: LocationController) {
+internal fun MyLocationMapButton(session: LocationSession, controller: LocationController, onSelectLocation: () -> Unit = {}) {
     val focusManager = LocalFocusManager.current
     Surface(
         shape = CircleShape,
@@ -217,13 +265,14 @@ internal fun MyLocationMapButton(session: LocationSession, controller: LocationC
         IconButton(
             onClick = {
                 focusManager.clearFocus()
-                session.requestLocation(controller)
+                onSelectLocation()
+                session.selectCurrentLocation(controller)
             },
-            enabled = !session.state.busy,
+            enabled = !session.isRequestingLocation,
             modifier = Modifier.size(48.dp).semantics { contentDescription = "My location" },
         ) {
             val iconColor = MaterialTheme.colorScheme.primary
-            if (session.state.busy) {
+            if (session.isRequestingLocation) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             } else {
                 Canvas(Modifier.size(24.dp)) {
@@ -247,7 +296,7 @@ internal fun LocationAccuracyNotice(session: LocationSession, modifier: Modifier
     val quality = reading?.let { LocationQualityPolicy.evaluate(it, locationNowMillis()) }
     // Keep the notice dismissed across GPS updates until accuracy recovers.
     var dismissed by remember(quality == LocationQuality.Usable) { mutableStateOf(false) }
-    if (reading == null || state.status != LocationStatus.Ready ||
+    if (!session.locationFeedbackRequested || reading == null || state.status != LocationStatus.Ready ||
         quality != LocationQuality.Approximate || dismissed
     ) return
 

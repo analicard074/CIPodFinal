@@ -24,9 +24,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.example.cipod_final.ui.ScreenTitle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
@@ -46,11 +45,7 @@ fun SettingsScreen(
             .fillMaxSize()
             .padding(24.dp)
     ) {
-        Text(
-            text = "Settings",
-            style = MaterialTheme.typography.headlineMedium,
-            modifier = Modifier.semantics { heading() }
-        )
+        ScreenTitle("Settings")
         Accessibility(
             enabled = accessibilityEnabled,
             onEnabledChange = onAccessibilityChange,

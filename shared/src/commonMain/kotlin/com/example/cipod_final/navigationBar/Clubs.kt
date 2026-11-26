@@ -13,7 +13,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Button
+import androidx.compose.material3.ElevatedButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -69,9 +69,9 @@ internal fun ClubsSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.Center
         ) {
-            Button(
+            ElevatedButton(
                 onClick = { showAddClub = true },
-                modifier = Modifier.fillMaxWidth(),
+                elevation = ButtonDefaults.elevatedButtonElevation(defaultElevation = 6.dp),
             ) {
                 Text("Add club")
             }

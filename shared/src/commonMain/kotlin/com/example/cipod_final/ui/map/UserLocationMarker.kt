@@ -4,13 +4,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.em
 import com.example.cipod_final.location.LocationQuality
 import com.example.cipod_final.location.LocationQualityPolicy
 import com.example.cipod_final.location.LocationReading
 import com.example.cipod_final.location.locationNowMillis
 import org.maplibre.compose.expressions.dsl.const
+import org.maplibre.compose.expressions.dsl.format
+import org.maplibre.compose.expressions.dsl.span
+import org.maplibre.compose.expressions.value.SymbolAnchor
 import org.maplibre.compose.layers.CircleLayer
 import org.maplibre.compose.layers.FillLayer
+import org.maplibre.compose.layers.SymbolLayer
 import org.maplibre.compose.sources.GeoJsonData
 import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.util.MaplibreComposable
@@ -38,12 +44,19 @@ internal fun UserLocationMarker(reading: LocationReading?, expired: Boolean) {
         color = const(LocationBlue), opacity = const(if (expired) 0.05f else 0.12f),
         outlineColor = const(LocationBlue.copy(alpha = 0.4f))
     )
+    CircleLayer(id = "student-location-halo", source = pointSource, radius = const(16.dp),
+        color = const(LocationBlue), opacity = const(if (expired) .06f else .18f))
     CircleLayer(
         id = "student-location", source = pointSource,
         color = const(LocationBlue), radius = const(8.dp),
         opacity = const(if (expired) 0.4f else 1f),
         strokeColor = const(Color.White), strokeWidth = const(3.dp)
     )
+    SymbolLayer(id = "student-location-label", source = pointSource,
+        textField = format(span(if (expired) "Last location" else "You are here")),
+        textFont = const(listOf("Noto Sans Regular")), textSize = const(12.sp),
+        textColor = const(LocationBlue), textHaloColor = const(Color.White), textHaloWidth = const(2.dp),
+        textAnchor = const(SymbolAnchor.Top), textRadialOffset = const(1.4.em))
 }
 
 /** Geodesic accuracy circle: its radius is in meters, not screen pixels. */

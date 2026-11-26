@@ -3,6 +3,8 @@ package com.example.cipod_final.location
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import kotlin.time.Clock
+import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -12,8 +14,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
-import kotlin.time.Clock
-import kotlin.time.Duration.Companion.seconds
 
 fun locationNowMillis(): Long = Clock.System.now().toEpochMilliseconds()
 
@@ -28,23 +28,30 @@ class LocationSession(
     // Incrementing this tells the map to center on the location again
     var readingRevision by mutableStateOf(0L)
         private set
+    var fallbackBuildingId by mutableStateOf<String?>(null)
+        private set
+    var locationFeedbackRequested by mutableStateOf(false)
+        private set
+    private var explicitRequestInFlight by mutableStateOf(false)
+    val isRequestingLocation: Boolean get() = explicitRequestInFlight && state.busy
 
     private var locationRequestJob: Job? = null
     private var locationExpiryJob: Job? = null
     private var automaticRefreshEnabled = true
     private var startingPointCleared = false
+    private var automaticRefreshActive = false
 
     suspend fun refreshAutomatically(controller: LocationController) {
-        automaticRefreshEnabled = !startingPointCleared && state.start !is StartingPoint.Building
+        automaticRefreshActive = true
+        automaticRefreshEnabled = !startingPointCleared
         var isFirstAttempt = true
         state = state.expire(locationNowMillis())
         try {
             while (currentCoroutineContext().isActive) {
                 val requestInProgress = locationRequestJob?.isActive == true || state.busy
-                val buildingSelected = state.start is StartingPoint.Building
                 val canTryPermission = isFirstAttempt || state.status != LocationStatus.Denied
 
-                if (automaticRefreshEnabled && !requestInProgress && !buildingSelected && canTryPermission) {
+                if (automaticRefreshEnabled && !requestInProgress && canTryPermission) {
                     requestLocation(controller, promptForPermission = false, automatic = true)
                     locationRequestJob?.join()
                 }
@@ -52,6 +59,7 @@ class LocationSession(
                 delay(3.seconds)
             }
         } finally {
+            automaticRefreshActive = false
             cancelRequest()
         }
     }
@@ -62,9 +70,15 @@ class LocationSession(
         automatic: Boolean = false
     ) {
         cancelRequest()
+        explicitRequestInFlight = !automatic
+        if (!automatic) {
+            locationFeedbackRequested = true
+            fallbackBuildingId = null
+        }
         startingPointCleared = false
         automaticRefreshEnabled = true
         val previousState = state.expire(locationNowMillis())
+        val preservedStart = if (automatic) previousState.start as? StartingPoint.Building else null
         val isBackgroundRefresh =
             automatic && previousState.reading != null && previousState.status != LocationStatus.Stale
         if (!isBackgroundRefresh) {
@@ -82,7 +96,8 @@ class LocationSession(
                 requestId,
                 result,
                 moveCamera = !automatic,
-                isBackgroundRefresh = isBackgroundRefresh
+                isBackgroundRefresh = isBackgroundRefresh,
+                preservedStart = preservedStart,
             )
         }
         locationRequestJob = scope.launch {
@@ -120,7 +135,8 @@ class LocationSession(
         requestId: Long,
         result: LocationResult,
         moveCamera: Boolean,
-        isBackgroundRefresh: Boolean
+        isBackgroundRefresh: Boolean,
+        preservedStart: StartingPoint.Building?,
     ) {
         if (state.requestId != requestId) {
             return
@@ -147,13 +163,25 @@ class LocationSession(
             if (state.reading != null && shouldCenterMap) {
                 readingRevision++
             }
-            if (state.start is StartingPoint.Device) {
-                state = state.copy(start = null)
+            if (preservedStart != null) {
+                state = state.copy(start = preservedStart)
+            } else {
+                if (state.start is StartingPoint.Device) state = state.copy(start = null)
+                state = state.useReading(locationNowMillis())
             }
-            state = state.useReading(locationNowMillis())
         }
         state = state.expire(locationNowMillis())
+        applyBuildingFallback()
         scheduleExpiry()
+    }
+
+    private fun applyBuildingFallback() {
+        val fallback = state.withNearbyBuildingFallback(locationNowMillis())
+        if (fallback != state) {
+            state = fallback
+            fallbackBuildingId = (fallback.start as? StartingPoint.Building)?.buildingId
+            automaticRefreshEnabled = automaticRefreshActive
+        }
     }
 
     private fun scheduleExpiry() {
@@ -177,6 +205,24 @@ class LocationSession(
         state = state.useReading(locationNowMillis())
     }
 
+    /** Switch immediately to the latest background fix; acquire a new one if it is not usable. */
+    fun selectCurrentLocation(controller: LocationController) {
+        val now = locationNowMillis()
+        val snapshot = state.reading
+        if (snapshot == null || LocationQualityPolicy.evaluate(snapshot, now) != LocationQuality.Usable) {
+            requestLocation(controller)
+            return
+        }
+        cancelRequest()
+        state = state.copy(start = StartingPoint.Device(snapshot), reading = snapshot, status = LocationStatus.Ready)
+        locationFeedbackRequested = true
+        fallbackBuildingId = null
+        startingPointCleared = false
+        automaticRefreshEnabled = true
+        readingRevision++
+        scheduleExpiry()
+    }
+
     fun chooseBuilding(id: String) {
         val selectedState = state.chooseBuilding(id)
         if (selectedState == state) {
@@ -184,10 +230,17 @@ class LocationSession(
         }
         cancelRequest()
         locationExpiryJob?.cancel()
+        fallbackBuildingId = null
         state = selectedState
+        locationFeedbackRequested = false
+        startingPointCleared = false
+        automaticRefreshEnabled = automaticRefreshActive
+        scheduleExpiry()
     }
 
     fun clear() {
+        locationFeedbackRequested = false
+        fallbackBuildingId = null
         startingPointCleared = true
         cancelRequest()
         locationExpiryJob?.cancel()
@@ -195,6 +248,7 @@ class LocationSession(
     }
 
     fun cancelRequest() {
+        explicitRequestInFlight = false
         automaticRefreshEnabled = false
         state = state.cancel()
         locationRequestJob?.cancel()

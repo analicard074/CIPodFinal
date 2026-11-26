@@ -7,23 +7,28 @@ import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -38,16 +43,20 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.cipod_final.indoor.FloorPlan
 import com.example.cipod_final.indoor.FloorPlanContent
+import com.example.cipod_final.indoor.IndoorRoute
 import com.example.cipod_final.indoor.PlanPoint
 import com.example.cipod_final.indoor.PlanTransform
-import com.example.cipod_final.indoor.RoomMarker
 import com.example.cipod_final.indoor.RoomHighlight
+import com.example.cipod_final.indoor.RoomMarker
 import com.example.cipod_final.ui.theme.ChannelBlue
 import com.example.cipod_final.ui.theme.Seafoam
-import com.example.cipod_final.ui.theme.WarmCream
 import com.example.cipod_final.ui.theme.SunsetOrange
-import org.jetbrains.compose.resources.imageResource
+import com.example.cipod_final.ui.theme.WarmCream
 import kotlin.math.roundToInt
+import org.jetbrains.compose.resources.imageResource
+import org.maplibre.compose.overlay.ZoomButtonsDefaults
+
+private val IndoorRouteColor = Color(0xFF244BFF)
 
 @Composable
 internal fun FloorPlanCanvas(
@@ -61,16 +70,17 @@ internal fun FloorPlanCanvas(
     modifier: Modifier = Modifier,
     roomHighlight: RoomHighlight? = null,
     highlightColor: Color? = null,
+    route: IndoorRoute? = null,
 ) {
     val currentMarkers by rememberUpdatedState(markers)
     val selectMarker by rememberUpdatedState(onSelectMarker)
     val placeMarker by rememberUpdatedState(onPlaceMarker)
     val moveMarker by rememberUpdatedState(onMoveMarker)
     val hitRadius = with(LocalDensity.current) { 24.dp.toPx() }
-    val defaultZoom = 1.2f
     var transform by remember(plan.id, plan.revision, plan.aspectRatio) {
-        mutableStateOf(PlanTransform(aspectRatio = plan.aspectRatio,zoom = defaultZoom))
+        mutableStateOf(PlanTransform(aspectRatio = plan.aspectRatio))
     }
+    var viewportInitialized by remember(plan.id, plan.revision, plan.aspectRatio) { mutableStateOf(false) }
     val drawable = when (val content = plan.content) {
         is FloorPlanContent.ApprovedImage -> content.resource
         is FloorPlanContent.ReferenceDraftImage -> content.resource
@@ -78,18 +88,34 @@ internal fun FloorPlanCanvas(
     }
     val image = drawable?.let { imageResource(it) }
     val measurer = rememberTextMeasurer()
-    Column(modifier) {
-        Row {
-            TextButton(onClick = {
-                transform = transform.gesture(1.35f, 0f, 0f, transform.viewportWidth / 2, transform.viewportHeight / 2)
-            }) { Text("Zoom +") }
-            TextButton(onClick = {
-                transform = transform.gesture(1 / 1.35f, 0f, 0f, transform.viewportWidth / 2, transform.viewportHeight / 2)
-            }) { Text("Zoom −") }
-            TextButton(onClick = { transform = transform.copy(zoom = defaultZoom, panX = 0f, panY = 0f) }) { Text("Reset View") }
-        }
-        Canvas(Modifier.fillMaxSize().padding(12.dp).clipToBounds().background(Seafoam)
-            .onSizeChanged { transform = transform.resized(it.width.toFloat(), it.height.toFloat()) }
+    Box(modifier) {
+        Canvas(Modifier.fillMaxSize().clipToBounds().background(Seafoam)
+            .onSizeChanged { size ->
+                if (size.width > 0 && size.height > 0) {
+                    val resized = transform.resized(size.width.toFloat(), size.height.toFloat())
+                    transform = if (!viewportInitialized) {
+                        // Fill the viewport and start closer in, centered on the route's arrival on this floor.
+                        val zoom = maxOf(
+                            1.6f,
+                            resized.viewportWidth / resized.width,
+                            resized.viewportHeight / resized.height,
+                        ).coerceAtMost(6f)
+                        val focus = route?.nodes?.firstOrNull { it.floorPlanId == plan.id }?.position
+                            ?: roomHighlight?.let { PlanPoint((it.left + it.right) / 2f, (it.top + it.bottom) / 2f) }
+                            ?: PlanPoint(.5f, .5f)
+                        val zoomed = resized.copy(zoom = zoom)
+                        val (x, y) = zoomed.screen(focus)
+                        viewportInitialized = true
+                        zoomed.gesture(
+                            factor = 1f,
+                            dx = zoomed.viewportWidth / 2f - x,
+                            dy = zoomed.viewportHeight / 2f - y,
+                            anchorX = x,
+                            anchorY = y,
+                        )
+                    } else resized
+                }
+            }
             .semantics { contentDescription = "Floor plan. Pinch to zoom or use zoom buttons. ${markers.size} markers; use the Markers list for text access." }
             .pointerInput(plan.id, plan.revision, plan.aspectRatio, editing, hitRadius) {
                 awaitEachGesture {
@@ -178,6 +204,21 @@ internal fun FloorPlanCanvas(
                 )
             }
             drawRect(Color.Gray, Offset(t.left, t.top), Size(t.width, t.height), style = Stroke(2.dp.toPx()))
+            route?.let { path ->
+                path.segments(plan.id).forEach { (from, to) ->
+                    val (ax, ay) = t.screen(from)
+                    val (bx, by) = t.screen(to)
+                    drawLine(Color.White, Offset(ax, ay), Offset(bx, by), 7.dp.toPx(), StrokeCap.Round)
+                    drawLine(IndoorRouteColor, Offset(ax, ay), Offset(bx, by), 4.dp.toPx(), StrokeCap.Round)
+                }
+                val floorNodes = path.nodes.filter { it.floorPlanId == plan.id }
+                val endpoints = listOfNotNull(floorNodes.firstOrNull(), floorNodes.lastOrNull()).distinctBy { it.id }
+                for (node in endpoints) {
+                    val (x, y) = t.screen(node.position)
+                    drawCircle(Color.White, 8.dp.toPx(), Offset(x, y))
+                    drawCircle(if (node == path.nodes.last()) SunsetOrange else IndoorRouteColor, 5.dp.toPx(), Offset(x, y))
+                }
+            }
             markers.forEach { marker ->
                 val (x, y) = t.screen(marker.position)
                 val center = Offset(x, y)
@@ -192,6 +233,35 @@ internal fun FloorPlanCanvas(
                 val origin = Offset(x + 18.dp.toPx(), y - label.size.height / 2f)
                 drawRect(WarmCream, origin, Size(label.size.width.toFloat(), label.size.height.toFloat()))
                 drawText(label, topLeft = origin)
+            }
+        }
+        val zoomStyle = ZoomButtonsDefaults.style()
+        Surface(
+            modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp),
+            shape = zoomStyle.shape,
+            color = zoomStyle.containerColor,
+            contentColor = zoomStyle.contentColor,
+        ) {
+            Column {
+                IconButton(
+                    onClick = {
+                        transform = transform.gesture(1.35f, 0f, 0f, transform.viewportWidth / 2, transform.viewportHeight / 2)
+                    },
+                    enabled = transform.zoom < 6f,
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Icon(ZoomButtonsDefaults.zoomInPainter(), contentDescription = "Zoom in", modifier = Modifier.size(24.dp))
+                }
+                HorizontalDivider(modifier = Modifier.size(width = 48.dp, height = zoomStyle.dividerThickness), color = zoomStyle.dividerColor)
+                IconButton(
+                    onClick = {
+                        transform = transform.gesture(1 / 1.35f, 0f, 0f, transform.viewportWidth / 2, transform.viewportHeight / 2)
+                    },
+                    enabled = transform.zoom > 1f,
+                    modifier = Modifier.size(48.dp),
+                ) {
+                    Icon(ZoomButtonsDefaults.zoomOutPainter(), contentDescription = "Zoom out", modifier = Modifier.size(24.dp))
+                }
             }
         }
     }

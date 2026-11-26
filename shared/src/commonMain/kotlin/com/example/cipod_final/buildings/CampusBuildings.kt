@@ -23,7 +23,8 @@ object CampusBuildings {
             id = "broome-library",
             name = "Broome Library",
             description = "John Spoor Broome Library offers library collections, study areas, classrooms, and computer labs.",
-            coordinates = BuildingCoordinates(34.162807, -119.041100),
+            // Center of the OSM building footprint; the walking entrance is stored separately.
+            coordinates = BuildingCoordinates(34.1627449, -119.0408063),
             universitySource = "https://maps.csuci.edu/?id=502#!m/133389",
             geographicSource = "https://www.openstreetmap.org/way/461618288"
         )

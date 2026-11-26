@@ -26,16 +26,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.buildings.CampusNavigationState
 import com.example.cipod_final.data.ClassSession
 import com.example.cipod_final.data.Club
 import com.example.cipod_final.data.firestore.SavedMyPod
 import com.example.cipod_final.indoor.FloorPlanEditorViewModel
 import com.example.cipod_final.location.LocationSession
+import com.example.cipod_final.ui.ScreenTitle
 import com.example.cipod_final.ui.map.BuildingSearchBar
 import com.example.cipod_final.ui.map.CampusMapScreen
 import kotlinx.coroutines.CancellationException
@@ -105,6 +106,15 @@ private fun restoreLegacyClassRecords(values: List<String>): List<MyPodClass> =
     }
 
 private val LEGACY_LOCATION_PATTERN = Regex("^(.+), Floor (.+), Room (.+)$")
+
+internal fun CampusNavigationState.directionsForClass(course: MyPodClass): CampusNavigationState {
+    val buildingName = course.building.trim()
+    val building = CampusBuildings.all.firstOrNull {
+        it.name.equals(buildingName, ignoreCase = true) || it.id.equals(buildingName, ignoreCase = true)
+    }
+    return if (building != null) selectDestination(building.id)
+    else copy(destinationId = null, selectedBuildingId = null, destinationRoomId = null)
+}
 
 @Composable
 fun NaviBar(
@@ -192,14 +202,18 @@ fun NaviBar(
             listOf(
                 it.query,
                 it.selectedBuildingId.orEmpty(),
-                it.destinationId.orEmpty()
+                it.destinationId.orEmpty(),
+                it.destinationRoomId.orEmpty(),
+                it.startRoomId.orEmpty(),
             )
         },
         restore = {
             CampusNavigationState(
                 it[0],
                 it[1].ifEmpty { null },
-                it[2].ifEmpty { null })
+                it[2].ifEmpty { null },
+                it.getOrNull(3)?.ifEmpty { null },
+                it.getOrNull(4)?.ifEmpty { null })
         }
     )) { mutableStateOf(CampusNavigationState()) }
 
@@ -222,6 +236,7 @@ fun NaviBar(
                     navigation = navigation,
                     locationSession = locationSession,
                     floorEditor = floorEditor,
+                    accessibilityEnabled = accessibilityEnabled,
                     onNavigationChange = { navigation = it }
                 )
 
@@ -251,7 +266,10 @@ fun NaviBar(
                     onAccessibilityChange = { accessibilityEnabled = it },
                     classes = classes,
                     onClassesChange = { updateSelections(it, clubs) },
-                    onDirectionsClick = { selected = "Directions" }
+                    onDirectionsClick = { course ->
+                        navigation = navigation.directionsForClass(course)
+                        selected = "Directions"
+                    }
                 )
 
                 "Resources" -> {
@@ -285,14 +303,11 @@ fun NaviBar(
                     onAccessibilityChange = { accessibilityEnabled = it }
                 )
 
-                else -> Text(
+                else -> ScreenTitle(
                     text = selected,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(24.dp),
-                    color = Color.Black,
-                    fontSize = 20.sp,
-                    textAlign = TextAlign.Center
                 )
             }
         }
