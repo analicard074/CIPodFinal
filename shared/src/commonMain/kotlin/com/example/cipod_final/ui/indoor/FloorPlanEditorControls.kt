@@ -1,6 +1,7 @@
 package com.example.cipod_final.ui.indoor
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -14,6 +15,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import com.example.cipod_final.indoor.FloorPlan
 import com.example.cipod_final.indoor.FloorPlanEditorState
 import com.example.cipod_final.indoor.RoomMarker
@@ -29,10 +32,11 @@ internal fun FloorPlanEditorControls(
     onDelete: () -> Unit
 ) {
     if (!editor.developerEnabled || !editor.editing) return
-    Column {
+    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         Text(if (pendingType == null) "Choose an Add type, then tap the plan. Drag a marker to move it."
-            else "Tap the plan to add a ${pendingType.label.lowercase()}. Pinch to zoom; drag blank space to pan.")
-        Row(Modifier.horizontalScroll(rememberScrollState())) {
+            else "Tap the plan to add a ${pendingType.label.lowercase()}. Pinch to zoom; drag blank space to pan.",
+            textAlign = TextAlign.Center)
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.Center) {
             RoomMarkerType.entries.forEach { type ->
                 TextButton(onClick = { onArmPlacement(type) }) {
                     Text(if (pendingType == type) "✓ Add ${type.label}" else "Add ${type.label}")
@@ -47,7 +51,7 @@ internal fun FloorPlanEditorControls(
                 label = { Text("Marker name") }, modifier = Modifier.fillMaxWidth(), singleLine = true,
                 isError = name.isBlank()
             )
-            Row(Modifier.horizontalScroll(rememberScrollState())) {
+            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.Center) {
                 RoomMarkerType.entries.forEach { option ->
                     TextButton(onClick = { type = option }) {
                         Text(if (type == option) "✓ ${option.label}" else option.label)

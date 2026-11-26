@@ -113,7 +113,7 @@ internal fun CampusNavigationState.directionsForClass(course: MyPodClass): Campu
         it.name.equals(buildingName, ignoreCase = true) || it.id.equals(buildingName, ignoreCase = true)
     }
     return if (building != null) selectDestination(building.id)
-    else copy(destinationId = null, selectedBuildingId = null)
+    else copy(destinationId = null, selectedBuildingId = null, destinationRoomId = null)
 }
 
 @Composable
@@ -202,14 +202,18 @@ fun NaviBar(
             listOf(
                 it.query,
                 it.selectedBuildingId.orEmpty(),
-                it.destinationId.orEmpty()
+                it.destinationId.orEmpty(),
+                it.destinationRoomId.orEmpty(),
+                it.startRoomId.orEmpty(),
             )
         },
         restore = {
             CampusNavigationState(
                 it[0],
                 it[1].ifEmpty { null },
-                it[2].ifEmpty { null })
+                it[2].ifEmpty { null },
+                it.getOrNull(3)?.ifEmpty { null },
+                it.getOrNull(4)?.ifEmpty { null })
         }
     )) { mutableStateOf(CampusNavigationState()) }
 
@@ -232,6 +236,7 @@ fun NaviBar(
                     navigation = navigation,
                     locationSession = locationSession,
                     floorEditor = floorEditor,
+                    accessibilityEnabled = accessibilityEnabled,
                     onNavigationChange = { navigation = it }
                 )
 

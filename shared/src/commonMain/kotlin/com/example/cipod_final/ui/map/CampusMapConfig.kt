@@ -30,7 +30,7 @@ internal object CampusMapConfig {
     val buildingBounds = BoundingBox(
         west = -119.045057,
         south = 34.162197,
-        east = -119.041100,
+        east = -119.0408063,
         north = 34.164838
     )
 
