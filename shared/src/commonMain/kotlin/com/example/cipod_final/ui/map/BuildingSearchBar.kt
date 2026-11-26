@@ -64,7 +64,7 @@ internal fun BuildingSearchBar(
             contentAlignment = Alignment.Center,
         ) {
             Text(
-                "Explore CI",
+                "Resources",
                 modifier = Modifier
                     .fillMaxWidth(),
                 color = Color.Black,
@@ -107,8 +107,8 @@ internal fun BuildingSearchBar(
                             if (it.isFocused) resultsExpanded = true
                         }
                         .background(searchFieldColor, searchFieldShape),
-                    label = { Text("Search campus buildings") },
-                    placeholder = { Text("Try Sierra Hall") },
+                    label = { Text("Search campus resources") },
+                    placeholder = { Text("Try 'Financial Aid'") },
                     singleLine = true,
                     shape = searchFieldShape,
                     trailingIcon = {

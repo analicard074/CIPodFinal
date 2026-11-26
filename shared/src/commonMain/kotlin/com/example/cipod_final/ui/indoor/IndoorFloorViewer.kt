@@ -78,7 +78,7 @@ internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState,
                 val editorMaxHeight = (maxHeight * .30f).coerceAtMost(240.dp)
                 Column(Modifier.fillMaxSize().padding(12.dp)) {
                     Row {
-                        TextButton(onClick = exit) { Text("Back to map") }
+                        TextButton(onClick = exit) { Text("Back to room directory") }
                         Text(
                             CampusBuildings.find(buildingId)?.name.orEmpty(),
                             Modifier.padding(12.dp),
@@ -220,7 +220,8 @@ internal fun IndoorFloorViewer(buildingId: String, editor: FloorPlanEditorState,
                 },
                 onBack = {
                     showDirectory = false
-                }
+                },
+                onViewFloorPlan = { showDirectory = false }
             )
         }
 

@@ -32,9 +32,10 @@ class LocationSession(
     private var locationRequestJob: Job? = null
     private var locationExpiryJob: Job? = null
     private var automaticRefreshEnabled = true
+    private var startingPointCleared = false
 
     suspend fun refreshAutomatically(controller: LocationController) {
-        automaticRefreshEnabled = state.start !is StartingPoint.Building
+        automaticRefreshEnabled = !startingPointCleared && state.start !is StartingPoint.Building
         var isFirstAttempt = true
         state = state.expire(locationNowMillis())
         try {
@@ -61,6 +62,7 @@ class LocationSession(
         automatic: Boolean = false
     ) {
         cancelRequest()
+        startingPointCleared = false
         automaticRefreshEnabled = true
         val previousState = state.expire(locationNowMillis())
         val isBackgroundRefresh =
@@ -186,6 +188,7 @@ class LocationSession(
     }
 
     fun clear() {
+        startingPointCleared = true
         cancelRequest()
         locationExpiryJob?.cancel()
         state = state.clear()

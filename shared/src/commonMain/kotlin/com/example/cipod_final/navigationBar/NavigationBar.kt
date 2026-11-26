@@ -24,6 +24,7 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -35,6 +36,7 @@ import com.example.cipod_final.data.Club
 import com.example.cipod_final.data.firestore.SavedMyPod
 import com.example.cipod_final.indoor.FloorPlanEditorViewModel
 import com.example.cipod_final.location.LocationSession
+import com.example.cipod_final.ui.map.BuildingSearchBar
 import com.example.cipod_final.ui.map.CampusMapScreen
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
@@ -251,6 +253,20 @@ fun NaviBar(
                     onClassesChange = { updateSelections(it, clubs) },
                     onDirectionsClick = { selected = "Directions" }
                 )
+
+                "Resources" -> {
+                    val focusManager = LocalFocusManager.current
+                    BuildingSearchBar(
+                        query = navigation.query,
+                        results = navigation.results,
+                        onQueryChange = { navigation = navigation.copy(query = it) },
+                        onBuildingClick = { building ->
+                            focusManager.clearFocus()
+                            navigation = navigation.preview(building.id)
+                            selected = "Directions"
+                        },
+                    )
+                }
 
                 "Settings" -> SettingsScreen(
                     onSignOut = {
