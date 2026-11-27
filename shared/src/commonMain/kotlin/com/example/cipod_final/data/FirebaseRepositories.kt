@@ -73,6 +73,17 @@ class FirebaseRepositories private constructor(
         }.sortedBy { it.clubID.lowercase() }
     }
 
+    // Read the shared events catalog; event details are managed in the Firebase Console.
+    suspend fun getEvents(): List<CampusEvent> {
+        checkNotNull(auth.currentUser) { "Please log in to view events." }
+        val snapshot = firestore.collection("events").get()
+        val events = snapshot.documents.map { document ->
+            val event = document.data<CampusEvent>()
+            event.copy(id = document.id)
+        }
+        return prepareEvents(events)
+    }
+
     companion object {
         // Uses the platform-configured default app. Does not sign in or read/write profiles.
         fun create(): FirebaseRepositories {
