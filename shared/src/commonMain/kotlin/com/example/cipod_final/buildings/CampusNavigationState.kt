@@ -11,6 +11,7 @@ data class CampusNavigationState(
     val destinationId: String? = null,
     val destinationRoomId: String? = null,
     val startRoomId: String? = null,
+    val destinationContext: String? = null,
 ) {
     val results: List<CampusBuilding> get() = CampusBuildings.search(query)
     val selectedBuilding: CampusBuilding? get() = CampusBuildings.find(selectedBuildingId)
@@ -26,6 +27,7 @@ data class CampusNavigationState(
             selectedBuildingId = room.buildingId,
             destinationId = if (sameBuilding) destinationId else null,
             destinationRoomId = if (sameBuilding) destinationRoomId else null,
+            destinationContext = if (sameBuilding) destinationContext else null,
         )
     }
 
@@ -38,6 +40,7 @@ data class CampusNavigationState(
             selectedBuildingId = room.buildingId,
             destinationRoomId = room.id,
             startRoomId = if (startRoom?.buildingId == room.buildingId) startRoomId else null,
+            destinationContext = null,
         )
     }
 
@@ -50,8 +53,32 @@ data class CampusNavigationState(
 
     fun selectDestination(id: String): CampusNavigationState =
         if (CampusBuildings.find(id)?.coordinates != null) {
-            copy(destinationId = id, selectedBuildingId = id, destinationRoomId = null, startRoomId = null)
+            copy(
+                destinationId = id,
+                selectedBuildingId = id,
+                destinationRoomId = null,
+                startRoomId = null,
+                destinationContext = null,
+            )
         } else this
 
-    fun clearDestination(): CampusNavigationState = copy(destinationId = null, destinationRoomId = null)
+    fun selectResourceDestination(
+        id: String,
+        resourceName: String,
+        indoorRoomId: String? = null,
+    ): CampusNavigationState {
+        val selected = selectDestination(id)
+        if (selected.destinationId != id) return this
+
+        // Resolve through the shared room directory and existing route-support checks. An absent
+        // or unsupported room leaves a valid building-only destination with no stale room state.
+        val withRoom = indoorRoomId
+            ?.let { RoomDirectory.find(id, it) }
+            ?.let(selected::selectRoomDestination)
+            ?: selected
+        return withRoom.copy(destinationContext = resourceName.trim().takeIf { it.isNotEmpty() })
+    }
+
+    fun clearDestination(): CampusNavigationState =
+        copy(destinationId = null, destinationRoomId = null, destinationContext = null)
 }

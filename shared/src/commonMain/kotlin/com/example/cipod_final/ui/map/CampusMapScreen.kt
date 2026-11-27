@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -308,6 +309,27 @@ fun CampusMapScreen(
                     )
                 },
             )
+            navigation.destinationContext?.let { resourceName ->
+                Text(
+                    text = "Resource destination: $resourceName",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            navigation.destinationRoom?.let { room ->
+                val floor = if (room.floorPlanId?.contains("second") == true) 2 else 1
+                Text(
+                    text = "Indoor destination: Room ${room.number} · Floor $floor",
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 2.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                TextButton(
+                    onClick = openIndoor,
+                    modifier = Modifier.padding(start = 8.dp),
+                ) { Text("Open indoor directions") }
+            }
             if (navigation.destination != null && navigation.startRoom == null) WalkingRouteControls(walkingRoute)
             Box(
                 modifier = Modifier
