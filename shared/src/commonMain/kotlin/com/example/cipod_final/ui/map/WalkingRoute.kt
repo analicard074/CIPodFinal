@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Button
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -39,6 +40,7 @@ import com.example.cipod_final.location.locationNowMillis
 import com.example.cipod_final.routing.CampusWalkingAccess
 import com.example.cipod_final.routing.OrsDirections
 import com.example.cipod_final.routing.RouteFailure
+import com.example.cipod_final.routing.RoutingConfig
 import com.example.cipod_final.routing.WalkingRouteDetails
 import com.example.cipod_final.routing.routingHttpClient
 import com.example.cipod_final.routing.walkingRouteDetails
@@ -54,12 +56,17 @@ import org.maplibre.compose.sources.rememberGeoJsonSource
 import org.maplibre.compose.util.MaplibreComposable
 
 internal class WalkingRouteState {
-    var retry by mutableStateOf(0)
+    var requestCount by mutableStateOf(0)
+    val routeRequested: Boolean get() = requestCount > 0
     var failed by mutableStateOf(false)
     var details by mutableStateOf<WalkingRouteDetails?>(null)
     val geoJson: String? get() = details?.displayGeoJson
     var busy by mutableStateOf(false)
     var message by mutableStateOf<String?>(null)
+
+    fun requestRoute() {
+        requestCount++
+    }
 }
 
 @Composable
@@ -68,7 +75,7 @@ internal fun rememberWalkingRoute(
     destination: CampusBuilding?,
     locationRevision: Long = 0L,
 ): WalkingRouteState {
-    // Route on destination/start selection, without issuing a request for each automatic GPS fix.
+    // Route requests are user-triggered; selecting a destination alone never sends coordinates.
     val startIdentity = when (start) {
         is StartingPoint.Building -> start.buildingId
         is StartingPoint.Device -> "device"
@@ -79,7 +86,8 @@ internal fun rememberWalkingRoute(
     val state = remember(startIdentity, destination?.id, originRevision) { WalkingRouteState() }
     val client = remember { routingHttpClient() }
     DisposableEffect(client) { onDispose { client.close() } }
-    LaunchedEffect(state, state.retry) {
+    LaunchedEffect(state, state.requestCount) {
+        if (!state.routeRequested) return@LaunchedEffect
         val target = destination ?: return@LaunchedEffect
         val arrival = CampusWalkingAccess.forBuilding(target.id) ?: return@LaunchedEffect
         val origin = when (start) {
@@ -143,8 +151,15 @@ internal fun WalkingRouteControls(state: WalkingRouteState) {
             textAlign = TextAlign.Center,
         )
     }
-    if (state.failed) {
-        TextButton(onClick = { state.retry++ }) { Text("Retry route") }
+    Button(onClick = state::requestRoute, enabled = !state.busy) {
+        Text(
+            when {
+                state.busy -> "Finding route…"
+                state.failed -> "Retry route"
+                state.details != null -> "Refresh walking route"
+                else -> "Find walking route"
+            }
+        )
     }
 }
 

@@ -70,4 +70,27 @@ class CampusBuildingsTest {
         val state = CampusNavigationState().selectDestination("broome-library")
         assertEquals(state, state.selectDestination("broome-library"))
     }
+
+    @Test fun resourceDestinationPreservesContextAndClearingRemovesIt() {
+        val state = CampusNavigationState().selectResourceDestination(
+            "broome-library",
+            "Learning Resource Center (LRC)",
+            "broome-library-2730",
+        )
+        assertEquals("broome-library", state.destination?.id)
+        assertEquals("Learning Resource Center (LRC)", state.destinationContext)
+        assertEquals("broome-library-2730", state.destinationRoomId)
+
+        val cleared = state.clearDestination()
+        assertNull(cleared.destination)
+        assertNull(cleared.destinationContext)
+    }
+
+    @Test fun regularDestinationSelectionClearsPriorResourceContext() {
+        val state = CampusNavigationState()
+            .selectResourceDestination("broome-library", "Learning Resource Center")
+            .selectDestination("sierra-hall")
+        assertEquals("sierra-hall", state.destination?.id)
+        assertNull(state.destinationContext)
+    }
 }

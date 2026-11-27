@@ -24,7 +24,6 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -32,14 +31,15 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.buildings.CampusNavigationState
 import com.example.cipod_final.data.CampusEvent
+import com.example.cipod_final.data.CampusResource
 import com.example.cipod_final.data.ClassSession
 import com.example.cipod_final.data.Club
 import com.example.cipod_final.data.firestore.SavedMyPod
 import com.example.cipod_final.indoor.FloorPlanEditorViewModel
 import com.example.cipod_final.location.LocationSession
 import com.example.cipod_final.ui.ScreenTitle
-import com.example.cipod_final.ui.map.BuildingSearchBar
 import com.example.cipod_final.ui.map.CampusMapScreen
+import com.example.cipod_final.routing.CampusWalkingAccess
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.launch
@@ -114,7 +114,12 @@ internal fun CampusNavigationState.directionsForClass(course: MyPodClass): Campu
         it.name.equals(buildingName, ignoreCase = true) || it.id.equals(buildingName, ignoreCase = true)
     }
     return if (building != null) selectDestination(building.id)
-    else copy(destinationId = null, selectedBuildingId = null, destinationRoomId = null)
+    else copy(
+        destinationId = null,
+        selectedBuildingId = null,
+        destinationRoomId = null,
+        destinationContext = null,
+    )
 }
 
 @Composable
@@ -207,6 +212,7 @@ fun NaviBar(
                 it.destinationId.orEmpty(),
                 it.destinationRoomId.orEmpty(),
                 it.startRoomId.orEmpty(),
+                it.destinationContext.orEmpty(),
             )
         },
         restore = {
@@ -215,7 +221,8 @@ fun NaviBar(
                 it[1].ifEmpty { null },
                 it[2].ifEmpty { null },
                 it.getOrNull(3)?.ifEmpty { null },
-                it.getOrNull(4)?.ifEmpty { null })
+                it.getOrNull(4)?.ifEmpty { null },
+                it.getOrNull(5)?.ifEmpty { null })
         }
     )) { mutableStateOf(CampusNavigationState()) }
 
@@ -277,15 +284,17 @@ fun NaviBar(
                 "Events" -> EventsScreen(loadEvents = loadEvents)
 
                 "Resources" -> {
-                    val focusManager = LocalFocusManager.current
-                    BuildingSearchBar(
-                        query = navigation.query,
-                        results = navigation.results,
-                        onQueryChange = { navigation = navigation.copy(query = it) },
-                        onBuildingClick = { building ->
-                            focusManager.clearFocus()
-                            navigation = navigation.preview(building.id)
-                            selected = "Directions"
+                    CampusResourcesScreen(
+                        hasDirections = { resource -> supportedResourceBuildingId(resource) != null },
+                        onGetDirections = { resource ->
+                            supportedResourceBuildingId(resource)?.let { buildingId ->
+                                navigation = navigation.selectResourceDestination(
+                                    buildingId,
+                                    resource.name,
+                                    resource.indoorDestinationRoomId,
+                                )
+                                selected = "Directions"
+                            }
                         },
                     )
                 }
@@ -336,6 +345,11 @@ fun NaviBar(
     }
 
 }
+
+private fun supportedResourceBuildingId(resource: CampusResource): String? =
+    resource.directionsBuildingId?.takeIf { buildingId ->
+        CampusBuildings.find(buildingId) != null && CampusWalkingAccess.forBuilding(buildingId) != null
+    }
 
 @Composable
 private fun NavigationButtons(
