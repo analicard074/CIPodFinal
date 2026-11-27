@@ -39,6 +39,7 @@ import com.example.cipod_final.location.locationNowMillis
 import com.example.cipod_final.routing.CampusWalkingAccess
 import com.example.cipod_final.routing.OrsDirections
 import com.example.cipod_final.routing.RouteFailure
+import com.example.cipod_final.routing.RoutingConfig
 import com.example.cipod_final.routing.WalkingRouteDetails
 import com.example.cipod_final.routing.routingHttpClient
 import com.example.cipod_final.routing.walkingRouteDetails
