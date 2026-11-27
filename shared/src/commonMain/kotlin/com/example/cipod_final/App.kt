@@ -29,6 +29,7 @@ fun App(
                 indoorEditorEnabled = indoorEditorEnabled,
                 loadClassSessions = { checkNotNull(firebase).getClassSessions() },
                 loadClubs = { checkNotNull(firebase).getClubs() },
+                loadEvents = { checkNotNull(firebase).getEvents() },
                 loadMyPod = { checkNotNull(firebase).myPod.load() },
                 saveMyPod = { selections -> checkNotNull(firebase).myPod.save(selections) },
                 onSignOut = {

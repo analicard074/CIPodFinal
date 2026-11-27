@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.buildings.CampusNavigationState
+import com.example.cipod_final.data.CampusEvent
 import com.example.cipod_final.data.ClassSession
 import com.example.cipod_final.data.Club
 import com.example.cipod_final.data.firestore.SavedMyPod
@@ -123,6 +124,7 @@ fun NaviBar(
     onSignOut: suspend () -> Unit = {},
     loadClassSessions: suspend () -> List<ClassSession> = { emptyList() },
     loadClubs: suspend () -> List<Club> = { emptyList() },
+    loadEvents: suspend () -> List<CampusEvent> = { emptyList() },
     loadMyPod: suspend () -> SavedMyPod = { SavedMyPod() },
     saveMyPod: suspend (SavedMyPod) -> Unit = {},
 ) {
@@ -271,6 +273,8 @@ fun NaviBar(
                         selected = "Directions"
                     }
                 )
+
+                "Events" -> EventsScreen(loadEvents = loadEvents)
 
                 "Resources" -> {
                     val focusManager = LocalFocusManager.current

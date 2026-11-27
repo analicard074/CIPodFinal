@@ -102,8 +102,11 @@ class IndoorRoutingGraph(
         val previous = mutableMapOf<String, Pair<String, IndoorEdge>>()
         val visited = mutableSetOf<String>()
         while (true) {
+
+            // Choose the unvisited node with the lowest total cost.
             val unvisited = distances.filterKeys { it !in visited }
             val current = unvisited.minByOrNull { it.value }?.key ?: return null
+
             if (current in targets) {
                 val path = mutableListOf(byId.getValue(current))
                 val connections = mutableListOf<IndoorEdge>()
@@ -120,9 +123,14 @@ class IndoorRoutingGraph(
             for (edge in edgesByNode[current].orEmpty()) {
                 if (avoidStairs && edge.connection == IndoorConnection.Stairs) continue
                 if (avoidElevators && edge.connection == IndoorConnection.Elevator) continue
+
                 val next = if (edge.from == current) edge.to else edge.from
+
+                // Calculate the cost of reaching this neighbor through the current node.
                 val candidate = distances.getValue(current) + edge.cost
                 val bestDistance = distances[next] ?: Double.POSITIVE_INFINITY
+
+                // Save the cheaper route and remember where it came from.
                 if (next !in visited && candidate < bestDistance) {
                     distances[next] = candidate
                     previous[next] = current to edge
