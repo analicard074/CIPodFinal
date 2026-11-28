@@ -1,6 +1,7 @@
 package com.example.cipod_final
 
 import com.example.cipod_final.buildings.BuildingCoordinates
+import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.location.LocationQualityPolicy
 import com.example.cipod_final.location.LocationReading
 import com.example.cipod_final.routing.*
@@ -96,6 +97,47 @@ class OrsDirectionsTest {
         assertNull(CampusWalkingAccess.departureFor("unknown", "broome-library"))
     }
 
+    @Test fun petitSalonUsesTheReportedDoorApproachAndExistingEndpointsRemainAvailable() {
+        assertEquals(BuildingCoordinates(34.163637, -119.043736), CampusWalkingAccess.forBuilding("petit-salon"))
+        listOf("broome-library", "sierra-hall", "gateway-hall").forEach {
+            assertNotNull(CampusWalkingAccess.forBuilding(it), "$it should retain its route endpoint")
+        }
+    }
+
+    @Test fun petitSalonBuildingRoutesUseTheDoorApproachAsTheirCorrectOrsEndpoint() = runTest {
+        val petit = assertNotNull(CampusWalkingAccess.forBuilding("petit-salon"))
+        val marker = assertNotNull(CampusBuildings.find("petit-salon")?.coordinates)
+        assertEquals(BuildingCoordinates(34.163609, -119.043770), marker)
+        assertNotEquals(marker, petit)
+        val quadPathSnap = BuildingCoordinates(34.163597147869325, -119.04389379821251)
+        assertEquals(15.18, distanceMeters(petit, quadPathSnap), .1)
+        assertTrue(distanceMeters(petit, quadPathSnap) <= 25.0)
+        val cases = listOf(
+            CampusWalkingAccess.departureFor("broome-library", "petit-salon")!! to petit,
+            CampusWalkingAccess.departureFor("sierra-hall", "petit-salon")!! to petit,
+            CampusWalkingAccess.departureFor("petit-salon", "broome-library")!! to
+                CampusWalkingAccess.forBuilding("broome-library")!!,
+            CampusWalkingAccess.departureFor("petit-salon", "sierra-hall")!! to
+                CampusWalkingAccess.forBuilding("sierra-hall")!!,
+        )
+        for ((origin, destination) in cases) {
+            var calls = 0
+            val client = HttpClient(MockEngine { request ->
+                calls++
+                val body = Json.parseToJsonElement((request.body as TextContent).text).jsonObject
+                val coordinates = body.getValue("coordinates").jsonArray
+                assertEquals(listOf(origin.longitude, origin.latitude), coordinates[0].jsonArray.map { it.jsonPrimitive.double })
+                assertEquals(listOf(destination.longitude, destination.latitude), coordinates[1].jsonArray.map { it.jsonPrimitive.double })
+                val response = """{"type":"FeatureCollection","features":[{"type":"Feature","properties":{},"geometry":{"type":"LineString","coordinates":[[${origin.longitude},${origin.latitude}],[${destination.longitude},${destination.latitude}]]}}]}"""
+                respond(response, HttpStatusCode.OK)
+            })
+            try {
+                OrsDirections(client, "test-key").walkingRoute(origin, destination)
+                assertEquals(1, calls)
+            } finally { client.close() }
+        }
+    }
+
     @Test fun missingKeyDoesNotSendRequest() = runTest {
         val client = HttpClient(MockEngine { error("No request expected") })
         try { assertFailsWith<RouteFailure> { OrsDirections(client, "").walkingRoute(start, end) } }
@@ -173,6 +215,15 @@ class WalkingRouteDetailsTest {
         assertEquals(entrance.longitude, coordinates.last().jsonArray[0].jsonPrimitive.double)
         assertEquals(bend.longitude, coordinates[1].jsonArray[0].jsonPrimitive.double)
         assertTrue(route.distanceMeters > 0 && route.durationSeconds > 0)
+    }
+
+    @Test fun petitSalonApproachAcceptsTheMeasuredQuadPathSnapWithinExistingLimit() {
+        val petit = assertNotNull(CampusWalkingAccess.forBuilding("petit-salon"))
+        val nearestQuadPathPoint = BuildingCoordinates(34.163597147869325, -119.04389379821251)
+        assertTrue(distanceMeters(petit, nearestQuadPathPoint) <= 25.0)
+        val route = walkingRouteDetails(response(listOf(start, bend, nearestQuadPathPoint)), start, petit)
+        assertEquals(petit.latitude, route.points.last().latitude)
+        assertEquals(petit.longitude, route.points.last().longitude)
     }
 
     @Test fun rejectsDistantNetworkSnapsAndInvalidGeometry() {

@@ -3,8 +3,8 @@ package com.example.cipod_final.routing
 import com.example.cipod_final.buildings.BuildingCoordinates
 
 /**
- * Routing points are separate from building labels. These are OSM-mapped pedestrian access
- * points, not surveyed accessible entrances. Evidence and review date are in docs/maps/README.md.
+ * Routing points are separate from building labels. Sources and confidence vary by endpoint;
+ * none implies a surveyed or wheelchair-accessible entrance. See docs/maps/README.md.
  */
 internal object CampusWalkingAccess {
     fun departureFor(buildingId: String, destinationId: String): BuildingCoordinates? {
@@ -21,6 +21,11 @@ internal object CampusWalkingAccess {
         "broome-library" -> BuildingCoordinates(34.1626619, -119.0410829)
         // Building-side end of footway 955221409; entrance not tagged in OSM.
         "gateway-hall" -> BuildingCoordinates(34.1649277, -119.0448354)
+        // Google Maps-reported main-door approach. Nearest connected OSM footway is
+        // Quad path (way 461618016), 15.18 m away; the approach is provisional.
+        "petit-salon" -> BuildingCoordinates(34.163637, -119.043736)
         else -> null
     }
+
+    fun supportsBuilding(buildingId: String): Boolean = forBuilding(buildingId) != null
 }

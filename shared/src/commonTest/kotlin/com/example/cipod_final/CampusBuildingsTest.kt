@@ -24,10 +24,19 @@ class CampusBuildingsTest {
         assertTrue(CampusBuildings.search("unknown building").isEmpty())
     }
 
-    @Test fun unverifiedBuildingsRemainSearchableWithoutCoordinates() {
+    @Test fun petitSalonIsSearchableAtTheOfficialCampusMapMarker() {
+        val petitSalon = CampusBuildings.search("  petit salon ").single()
+        assertEquals("petit-salon", petitSalon.id)
+        assertEquals(34.163609, petitSalon.coordinates?.latitude)
+        assertEquals(-119.043770, petitSalon.coordinates?.longitude)
+        assertTrue(petitSalon.universitySource.contains("maps.csuci.edu"))
+        assertEquals("petit-salon", CampusNavigationState().selectDestination(petitSalon.id).destination?.id)
+    }
+
+    @Test fun gatewayRemainsSearchableWithItsExistingMapMarker() {
         val gateway = CampusBuildings.search("gateway").single()
-        assertNull(gateway.coordinates)
-        assertTrue(gateway.locationNote.contains("awaiting verification"))
+        assertEquals("gateway-hall", gateway.id)
+        assertTrue(gateway.coordinates != null)
     }
 
     @Test fun previewDoesNotSetDestination() {
@@ -59,9 +68,9 @@ class CampusBuildingsTest {
         assertEquals(state, state.clearDestination())
     }
 
-    @Test fun unknownOrUnverifiedDestinationCannotReplaceExistingChoice() {
+    @Test fun unknownDestinationCannotReplaceExistingChoice() {
         val state = CampusNavigationState().selectDestination("sierra-hall")
-        assertEquals(state, state.selectDestination("gateway-hall"))
+        assertEquals("gateway-hall", state.selectDestination("gateway-hall").destination?.id)
         assertEquals(state, state.selectDestination("missing"))
         assertEquals(state, state.preview("missing"))
     }

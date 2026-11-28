@@ -50,6 +50,7 @@ import com.example.cipod_final.location.LocationSession
 import com.example.cipod_final.location.LocationStatus
 import com.example.cipod_final.location.StartingPoint
 import com.example.cipod_final.location.locationNowMillis
+import com.example.cipod_final.routing.CampusWalkingAccess
 
 @Composable
 internal fun StartingPointControls(
@@ -229,7 +230,7 @@ private fun RouteEndpointRow(
                             },
                         )
                     }
-                    CampusBuildings.all.filter { it.coordinates != null }.forEach { building ->
+                    CampusBuildings.all.filter { CampusWalkingAccess.supportsBuilding(it.id) }.forEach { building ->
                         DropdownMenuItem(
                             text = { Text(building.name) },
                             onClick = {

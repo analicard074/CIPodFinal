@@ -7,6 +7,7 @@ import com.example.cipod_final.location.LocationResult
 import com.example.cipod_final.location.LocationStatus
 import com.example.cipod_final.location.NavigationStartState
 import com.example.cipod_final.location.StartingPoint
+import com.example.cipod_final.routing.CampusWalkingAccess
 import kotlin.test.*
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -47,11 +48,20 @@ class NavigationStartStateTest {
     @Test fun staleReadingCannotBeSelectedEvenIfExpiryTimerHasNotRun() {
         assertNull(ready().useReading(now + 30_000).start)
     }
-    @Test fun onlyVerifiedBuildingsCanBeStartingPoints() {
+    @Test fun onlyBuildingsWithConfiguredWalkingApproachesCanBeStartingPoints() {
+        listOf("sierra-hall", "gateway-hall", "broome-library").forEach { id ->
+            assertEquals(StartingPoint.Building(id), NavigationStartState().chooseBuilding(id).start)
+        }
         val state = NavigationStartState().chooseBuilding("sierra-hall")
-        assertEquals(StartingPoint.Building("sierra-hall"), state.start)
-        assertEquals(state, state.chooseBuilding("gateway-hall"))
         assertEquals(state, state.chooseBuilding("unknown"))
+    }
+    @Test fun petitSalonDoorApproachIsAnEligibleManualStartAlongsideExistingBuildings() {
+        assertTrue(CampusWalkingAccess.supportsBuilding("petit-salon"))
+        assertEquals(StartingPoint.Building("petit-salon"), NavigationStartState().chooseBuilding("petit-salon").start)
+        listOf("gateway-hall", "sierra-hall", "broome-library").forEach {
+            assertTrue(CampusWalkingAccess.supportsBuilding(it))
+            assertEquals(StartingPoint.Building(it), NavigationStartState().chooseBuilding(it).start)
+        }
     }
     @Test fun manualSelectionReplacesDeviceStartAndKeepsLatestReading() {
         val state = ready().useReading(now).chooseBuilding("broome-library")
@@ -126,7 +136,7 @@ class BuildingStartFallbackTest {
         reading = reading, status = LocationStatus.Ready)
 
     @Test fun weakFixUsesNearestBuildingAndRemovesImpreciseDeviceCoordinates() {
-        CampusBuildings.all.filter { it.coordinates != null }.forEach { building ->
+        CampusBuildings.all.filter { CampusWalkingAccess.supportsBuilding(it.id) }.forEach { building ->
             val point = building.coordinates!!
             val weak = state(weakFix().copy(latitude = point.latitude, longitude = point.longitude))
             val fallback = weak.withNearbyBuildingFallback(now)
@@ -134,6 +144,13 @@ class BuildingStartFallbackTest {
             assertNull(fallback.reading)
             assertEquals(LocationStatus.Idle, fallback.status)
         }
+    }
+
+    @Test fun weakFixNearPetitSalonMayUseItsConfiguredEntranceApproachAsFallback() {
+        val marker = assertNotNull(CampusBuildings.find("petit-salon")?.coordinates)
+        val fallback = state(weakFix().copy(latitude = marker.latitude, longitude = marker.longitude))
+            .withNearbyBuildingFallback(now)
+        assertEquals(StartingPoint.Building("petit-salon"), fallback.start)
     }
 
     @Test fun manualBuildingAndGoodDeviceFixArePreserved() {
