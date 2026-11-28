@@ -89,7 +89,12 @@ internal fun rememberWalkingRoute(
     LaunchedEffect(state, state.requestCount) {
         if (!state.routeRequested) return@LaunchedEffect
         val target = destination ?: return@LaunchedEffect
-        val arrival = CampusWalkingAccess.forBuilding(target.id) ?: return@LaunchedEffect
+        val arrival = CampusWalkingAccess.forBuilding(target.id)
+        if (arrival == null) {
+            state.failed = true
+            state.message = "Walking directions to ${target.name} are unavailable because no verified pedestrian entrance approach is configured."
+            return@LaunchedEffect
+        }
         val origin = when (start) {
             is StartingPoint.Building -> CampusWalkingAccess.departureFor(
                 start.buildingId,

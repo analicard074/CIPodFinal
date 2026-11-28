@@ -3,6 +3,7 @@ package com.example.cipod_final.location
 import com.example.cipod_final.buildings.BuildingCoordinates
 import com.example.cipod_final.buildings.CampusBuildings
 import com.example.cipod_final.routing.distanceMeters
+import com.example.cipod_final.routing.CampusWalkingAccess
 
 sealed interface StartingPoint {
     data class Building(val buildingId: String) : StartingPoint
@@ -43,7 +44,7 @@ data class NavigationStartState(
     }
 
     fun chooseBuilding(id: String): NavigationStartState {
-        if (CampusBuildings.find(id)?.coordinates == null) return this
+        if (CampusBuildings.find(id)?.coordinates == null || !CampusWalkingAccess.supportsBuilding(id)) return this
         val nextStatus = when {
             !busy -> status
             reading != null -> LocationStatus.Ready
@@ -80,6 +81,7 @@ internal fun NavigationStartState.withNearbyBuildingFallback(nowMillis: Long): N
     var nearestId: String? = null
     var nearestDistance = Double.POSITIVE_INFINITY
     for (building in CampusBuildings.all) {
+        if (!CampusWalkingAccess.supportsBuilding(building.id)) continue
         val coordinates = building.coordinates ?: continue
         val distance = distanceMeters(approximatePoint, coordinates)
         if (distance < nearestDistance) {

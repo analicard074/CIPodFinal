@@ -416,3 +416,67 @@ viewer currently contains fictional demonstration layouts only, with a separatel
 enabled developer marker editor. No real floor counts or floor plans are asserted.
 See [indoor viewer and editor](../indoor/README.md) for developer flags, JSON export,
 and adding reviewed real images. Outdoor map/location behavior remains separate.
+
+## Petit Salon map marker and routing approach (reviewed 2026-11-28)
+
+Petit Salon is listed by name on the official [CSUCI campus map](https://maps.csuci.edu/?id=502#!m/133409)
+at grid E3 in the university's [published campus map](https://nursing.csuci.edu/master-campus-map-07-2016.pdf).
+The interactive map's Petit Salon record supplies the marker coordinate
+34.163609, -119.043770. CIPod uses that point only to make the place searchable
+and visible on the campus map; it is a campus map marker, not a surveyed building
+center, doorway, or pedestrian route endpoint.
+
+The proposed main-door approach (34.163637, -119.043736) was identified by the
+project owner using Google Maps. It is kept separate from the university's map
+marker and is not claimed to be independently surveyed. In the OSM extract reviewed
+2026-11-28, the nearest designated concrete pedestrian segment is [Quad path, way
+461618016](https://www.openstreetmap.org/way/461618016), 15.18 m from the proposed
+approach. That segment belongs to the same connected pedestrian-way component as
+the configured Broome Library, Sierra Hall, and Gateway Hall approaches. The nearest
+point on Quad path is southwest of the proposed door point; it is farther from the
+OSM Grand Salon point than from the proposed Petit Salon approach. The OSM data also
+contains a nearby “Petite Salon” beauty-shop node, which is not used as entrance
+evidence. OSM attribution: [openstreetmap.org/copyright](https://www.openstreetmap.org/copyright).
+
+CIPod now uses the proposed door point as Petit Salon's ORS endpoint. The 15.18 m
+off-network gap is within the existing 25 m ORS snap limit. The route response is
+anchored to the reported door point using the existing endpoint approach behavior,
+so the final short connector is provisional and is not an OSM-mapped path. Do not
+interpret it as verified step-free access. The official CSUCI marker remains the
+building search/map marker; the Google Maps-reported coordinate is used only for
+route start/end. Students can select Petit Salon as a manual start and destination.
+
+The ramp shown to the left in the reviewed Street View image belongs to Grand Salon
+and is not used as the Petit Salon endpoint. The project owner's identification of
+the main door is the basis for distinguishing the venue; the OSM proximity check
+supports snapping but does not independently prove the door identity. Wheelchair
+accessibility remains unverified.
+
+### Gateway Hall to Petit Salon corridor comparison (reviewed 2026-11-28)
+
+The attached CSUCI campus-map screenshot shows a shorter route south from Gateway,
+between Marin and Shasta, then east and south around the courtyard to Petit Salon.
+Its southern approach broadly aligns with OSM's designated concrete [Quad path,
+way 461618016](https://www.openstreetmap.org/way/461618016). The north end of that
+way is at 34.1641175, -119.0448728. CIPod's Gateway routing point
+(34.1649277, -119.0448354) lies on [OSM footway 955221409](https://www.openstreetmap.org/way/955221409),
+which is tagged gravel and has no mapped continuation south toward the Quad path.
+The two points are about 90 m apart. Thus the intended corridor is not fully
+represented as a connected path from the Gateway routing point in the reviewed OSM
+extract. The Quad path itself is mapped and connects into the broader walkable graph;
+the gap is on the Gateway-to-Quad-path approach, not the southern courtyard path.
+
+The existing Gateway point is on a mapped footway, so it is not an off-network snap;
+however, that way's topology sends a router north from its end before it can reach
+the southern network. This is a plausible explanation for the detour, not a
+confirmed explanation of ORS's exact choice: route API requests could not be
+completed during this review, so no live ORS geometry, distance, or duration was
+available to compare. A local topology check likewise finds a long connection to
+the Quad path through other mapped ways. ORS uses a 25 m endpoint snapping radius,
+which cannot bridge the roughly 90 m missing Gateway connection. Do not add an
+intermediate waypoint or draw a connector across that gap based only on the
+screenshot. The next step is to field-check the southbound walkway and obtain a
+georeferenced trace or authoritative campus GIS/map evidence for its connection at
+both ends; then review the relevant OSM ways and verify ORS returns the intended
+route before changing CIPod. No route geometry, ORS preference, or public OSM data
+was changed as part of this review.

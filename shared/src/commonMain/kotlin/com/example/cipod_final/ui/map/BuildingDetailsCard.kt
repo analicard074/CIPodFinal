@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.cipod_final.buildings.CampusBuilding
+import com.example.cipod_final.routing.CampusWalkingAccess
 
 @Composable
 internal fun BuildingDetailsCard(
@@ -88,7 +89,7 @@ internal fun BuildingDetailsCard(
                 OutlinedButton(
                     onClick = onSelectStartingPoint,
                     modifier = Modifier.weight(1f).heightIn(min = 48.dp),
-                    enabled = building.coordinates != null && !navigationActive,
+                    enabled = CampusWalkingAccess.supportsBuilding(building.id) && !navigationActive,
                 ) { Text("Start here") }
                 Button(
                     onClick = onDirections,
